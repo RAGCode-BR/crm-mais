@@ -1,0 +1,2 @@
+-- Intentionally empty in Block 1.
+-- Reproducible development fixtures will be added with the features that consume them.

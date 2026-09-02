@@ -80,7 +80,8 @@ sem colapsar essas entidades em um cadastro genérico.
 - Funções `security definer`, se inevitáveis, ficarão em schema privado, terão `search_path` fixo,
   checagem de usuário e grants explícitos.
 
-O desenho detalhado de tabelas, policies e testes de isolamento pertence aos Blocos 1 e 2.
+O desenho detalhado de tabelas está em `database-schema.md`; autenticação, matriz de papéis,
+policies e garantias de isolamento estão em `auth-and-authorization.md`.
 
 ## Decisões de frontend
 

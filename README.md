@@ -43,7 +43,9 @@ Os comandos individuais são `typecheck`, `lint`, `test`, `build` e `format:chec
 - `docs`: arquitetura, convenções e auditorias
 
 Leia [docs/architecture.md](docs/architecture.md), [docs/conventions.md](docs/conventions.md) e
-[docs/block-0-audit.md](docs/block-0-audit.md) antes de implementar novos módulos.
+[docs/block-0-audit.md](docs/block-0-audit.md) antes de implementar novos módulos. O modelo atual do
+banco está documentado em [docs/database-schema.md](docs/database-schema.md), e a matriz de acesso
+está em [docs/auth-and-authorization.md](docs/auth-and-authorization.md).
 
 Cada página deve possuir seu próprio arquivo `*Page.tsx`. Arquivos `index.ts` são usados somente
 para exports e nunca como contêiner de múltiplas páginas.
