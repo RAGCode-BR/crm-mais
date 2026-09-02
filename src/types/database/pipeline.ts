@@ -1,6 +1,7 @@
 import type { ISODate, ISODateTime, MutableOrganizationRecord, UUID } from './common'
 
-export type OpportunityStatus = 'open' | 'won' | 'lost'
+export type OpportunityStatus =
+  'open' | 'no_response' | 'discarded' | 'lost' | 'reactivate_later' | 'won'
 
 export interface Pipeline extends MutableOrganizationRecord {
   name: string

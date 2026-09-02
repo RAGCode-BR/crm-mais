@@ -148,6 +148,11 @@ describe('CRM database migrations', () => {
           'Company B'
         );
 
+      delete from public.pipeline_stages
+      where organization_id in ('${organizationAId}', '${organizationBId}');
+      delete from public.pipelines
+      where organization_id in ('${organizationAId}', '${organizationBId}');
+
       insert into public.pipelines (id, organization_id, name, is_default) values
         (
           '30000000-0000-4000-8000-000000000001',
@@ -162,13 +167,21 @@ describe('CRM database migrations', () => {
         pipeline_id,
         name,
         position
-      ) values (
-        '40000000-0000-4000-8000-000000000001',
-        '${organizationAId}',
-        '30000000-0000-4000-8000-000000000001',
-        'New',
-        0
-      );
+      ) values
+        (
+          '40000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          '30000000-0000-4000-8000-000000000001',
+          'New',
+          0
+        ),
+        (
+          '40000000-0000-4000-8000-000000000002',
+          '${organizationAId}',
+          '30000000-0000-4000-8000-000000000001',
+          'Qualified',
+          1
+        );
     `)
   }, 30_000)
 
@@ -415,6 +428,122 @@ describe('CRM database migrations', () => {
         );
       `),
     ).rejects.toThrow(/foreign key constraint/i)
+  })
+
+  it('provides non-unique duplicate lookup indexes for CRM warnings', async () => {
+    const indexes = await database.query<{ indexname: string }>(`
+      select indexname
+      from pg_indexes
+      where schemaname = 'public'
+        and indexname in ('companies_phone_idx', 'contacts_whatsapp_idx')
+      order by indexname;
+    `)
+
+    expect(indexes.rows.map(({ indexname }) => indexname)).toEqual([
+      'companies_phone_idx',
+      'contacts_whatsapp_idx',
+    ])
+  })
+
+  it('bootstraps the nine-stage commercial pipeline for a new organization', async () => {
+    await database.exec(`
+      insert into public.organizations (id, name, slug)
+      values (
+        '10000000-0000-4000-8000-000000000009',
+        'Pipeline bootstrap',
+        'pipeline-bootstrap'
+      );
+    `)
+    const pipeline = await database.query<{ count: number; stages: number }>(`
+      select count(distinct pipelines.id)::int as count,
+             count(pipeline_stages.id)::int as stages
+      from public.pipelines
+      join public.pipeline_stages on pipeline_stages.pipeline_id = pipelines.id
+      where pipelines.organization_id = '10000000-0000-4000-8000-000000000009'
+        and pipelines.is_default;
+    `)
+
+    expect(pipeline.rows[0]).toEqual({ count: 1, stages: 9 })
+  })
+
+  it('blocks untracked stage updates and records atomic pipeline movements', async () => {
+    await authenticateAs(database, userAId)
+    try {
+      await database.exec(`
+        insert into public.opportunities (
+          id, organization_id, title, company_id, pipeline_id, stage_id
+        ) values (
+          '50000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          'Tracked opportunity',
+          '20000000-0000-4000-8000-000000000001',
+          '30000000-0000-4000-8000-000000000001',
+          '40000000-0000-4000-8000-000000000001'
+        );
+      `)
+
+      await expect(
+        database.exec(`
+          update public.opportunities
+          set stage_id = '40000000-0000-4000-8000-000000000002'
+          where id = '50000000-0000-4000-8000-000000000001';
+        `),
+      ).rejects.toThrow(/must use move_opportunity/i)
+
+      await database.exec(`
+        select public.move_opportunity(
+          '50000000-0000-4000-8000-000000000001',
+          '40000000-0000-4000-8000-000000000002',
+          null
+        );
+      `)
+      const result = await database.query<{ activities: number; stage_id: string }>(`
+        select opportunities.stage_id::text,
+               count(activities.id)::int as activities
+        from public.opportunities
+        left join public.activities
+          on activities.opportunity_id = opportunities.id
+          and activities.type = 'stage_change'
+        where opportunities.id = '50000000-0000-4000-8000-000000000001'
+        group by opportunities.stage_id;
+      `)
+
+      expect(result.rows[0]).toEqual({
+        activities: 1,
+        stage_id: '40000000-0000-4000-8000-000000000002',
+      })
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('saves a multi-stage pipeline configuration atomically for managers', async () => {
+    await authenticateAs(database, managerAId)
+    try {
+      const saved = await database.query<{ pipeline_id: string }>(`
+        select public.save_pipeline_configuration(
+          '${organizationAId}',
+          null,
+          'Enterprise',
+          'Pipeline de contas estratégicas',
+          false,
+          true,
+          '[
+            {"name":"Descoberta","probability":20,"isWon":false,"isLost":false},
+            {"name":"Ganho","probability":100,"isWon":true,"isLost":false}
+          ]'::jsonb
+        )::text as pipeline_id;
+      `)
+      const stages = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.pipeline_stages
+        where pipeline_id = '${saved.rows[0]?.pipeline_id}';
+      `)
+
+      expect(stages.rows[0]?.count).toBe(2)
+    } finally {
+      await resetAuthentication(database)
+    }
   })
 
   it('enforces lifecycle consistency for opportunities and tasks', async () => {

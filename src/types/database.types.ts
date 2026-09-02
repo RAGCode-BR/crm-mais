@@ -3,6 +3,7 @@ import type { Activity, EntityTag, Note, Tag, Task } from './database/engagement
 import type { Organization, OrganizationMember, Profile, Team } from './database/identity'
 import type { Opportunity, Pipeline, PipelineStage } from './database/pipeline'
 import type { Attachment, AuditLog, Notification } from './database/system'
+import type { Json } from './database/common'
 
 type TableDefinition<Row extends object, RequiredInsert extends keyof Row> = {
   Row: Row & Record<string, unknown>
@@ -56,7 +57,28 @@ export type Database = {
       audit_logs: TableDefinition<AuditLog, 'organization_id' | 'entity_type' | 'action'>
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      move_opportunity: {
+        Args: {
+          opportunity_id: string
+          target_stage_id: string
+          target_loss_reason?: string | null
+        }
+        Returns: Opportunity
+      }
+      save_pipeline_configuration: {
+        Args: {
+          target_organization_id: string
+          target_pipeline_id: string | null
+          pipeline_name: string
+          pipeline_description: string
+          pipeline_is_default: boolean
+          pipeline_is_active: boolean
+          stages: Json
+        }
+        Returns: string
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

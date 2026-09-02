@@ -60,13 +60,24 @@ export function WorkspacePage() {
                 Selecione o ambiente em que deseja trabalhar.
               </p>
             </div>
-            <Link
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
-              to="/organizacoes"
-            >
-              <Plus className="size-4" aria-hidden="true" />
-              Nova organização
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {activeOrganization ? (
+                <Link
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+                  to="/empresas"
+                >
+                  Abrir CRM
+                  <ChevronRight className="size-4" aria-hidden="true" />
+                </Link>
+              ) : null}
+              <Link
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium hover:bg-muted"
+                to="/organizacoes"
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                Nova organização
+              </Link>
+            </div>
           </div>
 
           {signOutError ? (
