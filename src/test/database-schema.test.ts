@@ -216,7 +216,7 @@ describe('CRM database migrations', () => {
     `)
 
     expect(tablesWithoutRls.rows).toEqual([])
-    expect(policies.rows[0]?.count).toBe(71)
+    expect(policies.rows[0]?.count).toBe(69)
   })
 
   it('keeps anon blocked and exposes read access only to authenticated users', async () => {
@@ -331,6 +331,50 @@ describe('CRM database migrations', () => {
       `)
 
       expect(membership.rows).toEqual([{ role: 'owner', status: 'active' }])
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('isolates tasks between organizations at the database boundary', async () => {
+    await authenticateAs(database, userBId)
+    try {
+      await database.exec(`
+        insert into public.tasks (
+          id, organization_id, assigned_member_id, title, due_at
+        ) values (
+          '60000000-0000-4000-8000-000000000003',
+          '${organizationBId}',
+          '11000000-0000-4000-8000-000000000002',
+          'Private organization B task',
+          now() + interval '1 day'
+        );
+      `)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userAId)
+    try {
+      const hidden = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.tasks
+        where id = '60000000-0000-4000-8000-000000000003';
+      `)
+      expect(hidden.rows[0]?.count).toBe(0)
+
+      await expect(
+        database.exec(`
+          insert into public.tasks (
+            organization_id, assigned_member_id, title, due_at
+          ) values (
+            '${organizationBId}',
+            '11000000-0000-4000-8000-000000000002',
+            'Cross-tenant task',
+            now() + interval '1 day'
+          );
+        `),
+      ).rejects.toThrow(/row-level security/i)
     } finally {
       await resetAuthentication(database)
     }
@@ -546,7 +590,104 @@ describe('CRM database migrations', () => {
     }
   })
 
-  it('enforces lifecycle consistency for opportunities and tasks', async () => {
+  it('automatically records lead, assignment, task and opportunity outcome events', async () => {
+    await authenticateAs(database, userAId)
+    try {
+      await database.exec(`
+        insert into public.leads (
+          id, organization_id, name, company_id
+        ) values (
+          '21000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          'Automatic timeline lead',
+          '20000000-0000-4000-8000-000000000001'
+        );
+
+        update public.leads
+        set owner_member_id = '11000000-0000-4000-8000-000000000004'
+        where id = '21000000-0000-4000-8000-000000000001';
+
+        insert into public.tasks (
+          id, organization_id, lead_id, title
+        ) values (
+          '60000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          '21000000-0000-4000-8000-000000000001',
+          'Follow-up automático'
+        );
+
+        update public.tasks
+        set status = 'completed', completed_at = now()
+        where id = '60000000-0000-4000-8000-000000000001';
+
+        insert into public.opportunities (
+          id, organization_id, title, company_id, pipeline_id, stage_id
+        ) values (
+          '50000000-0000-4000-8000-000000000002',
+          '${organizationAId}',
+          'Automatic outcome opportunity',
+          '20000000-0000-4000-8000-000000000001',
+          '30000000-0000-4000-8000-000000000001',
+          '40000000-0000-4000-8000-000000000001'
+        );
+
+        update public.opportunities
+        set status = 'won', closed_at = now()
+        where id = '50000000-0000-4000-8000-000000000002';
+
+        update public.opportunities
+        set status = 'lost', loss_reason = 'Preço', closed_at = now()
+        where id = '50000000-0000-4000-8000-000000000002';
+      `)
+
+      const events = await database.query<{ event: string; count: number }>(`
+        select metadata ->> 'event' as event, count(*)::int as count
+        from public.activities
+        where organization_id = '${organizationAId}'
+          and metadata ->> 'event' in (
+          'lead_created', 'assignment_changed', 'task_created',
+          'task_completed', 'opportunity_won'
+          , 'opportunity_lost'
+        )
+        group by metadata ->> 'event'
+        order by event;
+      `)
+
+      expect(events.rows).toEqual([
+        { count: 1, event: 'assignment_changed' },
+        { count: 1, event: 'lead_created' },
+        { count: 1, event: 'opportunity_lost' },
+        { count: 1, event: 'opportunity_won' },
+        { count: 1, event: 'task_completed' },
+        { count: 1, event: 'task_created' },
+      ])
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('keeps timeline activities append-only for authenticated roles', async () => {
+    const privileges = await database.query<{ can_delete: boolean; can_update: boolean }>(`
+      select
+        has_table_privilege('authenticated', 'public.activities', 'delete') as can_delete,
+        has_table_privilege('authenticated', 'public.activities', 'update') as can_update;
+    `)
+    expect(privileges.rows[0]).toEqual({ can_delete: false, can_update: false })
+
+    await authenticateAs(database, managerAId)
+    try {
+      await expect(
+        database.exec(`
+          update public.activities
+          set subject = 'History rewritten';
+        `),
+      ).rejects.toThrow(/permission denied/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('enforces opportunity lifecycle consistency', async () => {
     await expect(
       database.exec(`
         insert into public.opportunities (
@@ -568,19 +709,40 @@ describe('CRM database migrations', () => {
         );
       `),
     ).rejects.toThrow(/opportunities_loss_reason_check/i)
+  })
 
-    await expect(
-      database.exec(`
-        insert into public.tasks (
-          organization_id,
-          title,
-          status
-        ) values (
-          '10000000-0000-4000-8000-000000000001',
-          'Invalid completed task',
-          'completed'
-        );
-      `),
-    ).rejects.toThrow(/tasks_completed_at_check/i)
+  it('keeps task completion timestamps consistent automatically', async () => {
+    await database.exec(`
+      insert into public.tasks (
+        id,
+        organization_id,
+        title,
+        status
+      ) values (
+        '60000000-0000-4000-8000-000000000002',
+        '${organizationAId}',
+        'Completed by lifecycle trigger',
+        'completed'
+      );
+    `)
+
+    const completed = await database.query<{ completed_at: string | null }>(`
+      select completed_at::text
+      from public.tasks
+      where id = '60000000-0000-4000-8000-000000000002';
+    `)
+    expect(completed.rows[0]?.completed_at).not.toBeNull()
+
+    await database.exec(`
+      update public.tasks
+      set status = 'pending'
+      where id = '60000000-0000-4000-8000-000000000002';
+    `)
+    const reopened = await database.query<{ completed_at: string | null }>(`
+      select completed_at::text
+      from public.tasks
+      where id = '60000000-0000-4000-8000-000000000002';
+    `)
+    expect(reopened.rows[0]?.completed_at).toBeNull()
   })
 })

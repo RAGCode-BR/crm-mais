@@ -2,6 +2,8 @@ import {
   Building2,
   ContactRound,
   GitBranch,
+  History,
+  ListTodo,
   LogOut,
   Menu,
   Settings2,
@@ -22,6 +24,8 @@ const navigation = [
   { to: '/contatos', label: 'Contatos', icon: ContactRound },
   { to: '/leads', label: 'Leads', icon: Target },
   { to: '/oportunidades', label: 'Oportunidades', icon: GitBranch },
+  { to: '/timeline', label: 'Timeline', icon: History },
+  { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
 ]
 
 export function AppShell() {

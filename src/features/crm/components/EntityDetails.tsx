@@ -1,4 +1,4 @@
-import { Archive, Pencil } from 'lucide-react'
+import { Archive, History, ListTodo, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -95,6 +95,13 @@ export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }
             ['Observações', row.notes],
           ]
   const canWrite = roleCanWrite(activeOrganization?.role)
+  const taskContext = new URLSearchParams()
+  taskContext.set(
+    entity === 'companies' ? 'empresa' : entity === 'contacts' ? 'contato' : 'lead',
+    id,
+  )
+  if (entity !== 'companies' && row.company_id) taskContext.set('empresa', String(row.company_id))
+  if (entity === 'leads' && row.contact_id) taskContext.set('contato', String(row.contact_id))
   return (
     <div className="space-y-6">
       <PageHeader
@@ -106,14 +113,30 @@ export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }
             >
               Voltar
             </Link>
+            <Link
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
+              to={`/timeline?${entity === 'companies' ? 'empresa' : entity === 'contacts' ? 'contato' : 'lead'}=${id}`}
+            >
+              <History className="size-4" />
+              Timeline
+            </Link>
             {canWrite ? (
-              <Link
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-                to={`${current.path}/${id}/editar`}
-              >
-                <Pencil className="size-4" />
-                {current.edit}
-              </Link>
+              <>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
+                  to={`/tarefas/nova?${taskContext.toString()}`}
+                >
+                  <ListTodo className="size-4" />
+                  Criar tarefa
+                </Link>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+                  to={`${current.path}/${id}/editar`}
+                >
+                  <Pencil className="size-4" />
+                  {current.edit}
+                </Link>
+              </>
             ) : null}
           </>
         }

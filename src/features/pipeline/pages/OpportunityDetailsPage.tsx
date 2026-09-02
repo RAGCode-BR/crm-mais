@@ -1,4 +1,4 @@
-import { ArrowRight, Pencil } from 'lucide-react'
+import { ArrowRight, History, ListTodo, Pencil } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
@@ -69,14 +69,30 @@ export function OpportunityDetailsPage() {
             >
               Voltar ao Kanban
             </Link>
+            <Link
+              className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
+              to={`/timeline?oportunidade=${row.id}`}
+            >
+              <History className="size-4" />
+              Timeline completa
+            </Link>
             {roleCanWrite(activeOrganization?.role) ? (
-              <Link
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-                to={`/oportunidades/${row.id}/editar`}
-              >
-                <Pencil className="size-4" />
-                Editar
-              </Link>
+              <>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
+                  to={`/tarefas/nova?oportunidade=${row.id}&empresa=${row.company_id}${row.contact_id ? `&contato=${row.contact_id}` : ''}${row.lead_id ? `&lead=${row.lead_id}` : ''}`}
+                >
+                  <ListTodo className="size-4" />
+                  Criar tarefa
+                </Link>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+                  to={`/oportunidades/${row.id}/editar`}
+                >
+                  <Pencil className="size-4" />
+                  Editar
+                </Link>
+              </>
             ) : null}
           </>
         }

@@ -130,3 +130,63 @@ export const EditPipelinePage = lazy(() =>
     default: module.EditPipelinePage,
   })),
 )
+
+export const TimelinePage = lazy(() =>
+  import('@/features/timeline/pages/TimelinePage').then((module) => ({
+    default: module.TimelinePage,
+  })),
+)
+
+export const NewActivityPage = lazy(() =>
+  import('@/features/timeline/pages/NewActivityPage').then((module) => ({
+    default: module.NewActivityPage,
+  })),
+)
+
+export const MyTasksPage = lazy(() =>
+  import('@/features/tasks/pages/MyTasksPage').then((module) => ({
+    default: module.MyTasksPage,
+  })),
+)
+
+export const TodayTasksPage = lazy(() =>
+  import('@/features/tasks/pages/TodayTasksPage').then((module) => ({
+    default: module.TodayTasksPage,
+  })),
+)
+
+export const OverdueTasksPage = lazy(() =>
+  import('@/features/tasks/pages/OverdueTasksPage').then((module) => ({
+    default: module.OverdueTasksPage,
+  })),
+)
+
+export const UpcomingTasksPage = lazy(() =>
+  import('@/features/tasks/pages/UpcomingTasksPage').then((module) => ({
+    default: module.UpcomingTasksPage,
+  })),
+)
+
+export const CompletedTasksPage = lazy(() =>
+  import('@/features/tasks/pages/CompletedTasksPage').then((module) => ({
+    default: module.CompletedTasksPage,
+  })),
+)
+
+export const NewTaskPage = lazy(() =>
+  import('@/features/tasks/pages/NewTaskPage').then((module) => ({
+    default: module.NewTaskPage,
+  })),
+)
+
+export const TaskDetailsPage = lazy(() =>
+  import('@/features/tasks/pages/TaskDetailsPage').then((module) => ({
+    default: module.TaskDetailsPage,
+  })),
+)
+
+export const EditTaskPage = lazy(() =>
+  import('@/features/tasks/pages/EditTaskPage').then((module) => ({
+    default: module.EditTaskPage,
+  })),
+)
