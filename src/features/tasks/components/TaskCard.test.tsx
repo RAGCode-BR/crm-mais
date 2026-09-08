@@ -11,6 +11,8 @@ const task: Task = {
   contact_id: null,
   lead_id: null,
   opportunity_id: null,
+  cadence_enrollment_id: null,
+  cadence_step_id: null,
   assigned_member_id: '11000000-0000-4000-8000-000000000001',
   title: 'Retornar proposta',
   description: 'Confirmar condições comerciais.',

@@ -6,6 +6,7 @@ import { AppShell } from '@/layouts/AppShell'
 
 import {
   ForgotPasswordPage,
+  DashboardPage,
   CompaniesPage,
   CompanyDetailsPage,
   ContactDetailsPage,
@@ -31,6 +32,9 @@ import {
   OpportunityDetailsPage,
   OverdueTasksPage,
   PipelinesPage,
+  ProspectingListPage,
+  ProspectingListsPage,
+  NewProspectingListPage,
   OrganizationsPage,
   RegisterPage,
   ResetPasswordPage,
@@ -40,6 +44,10 @@ import {
   TodayTasksPage,
   UpcomingTasksPage,
   WorkspacePage,
+  CadencesPage,
+  NewCadencePage,
+  CadenceDetailsPage,
+  EditCadencePage,
 } from './lazyPages'
 
 export const router = createBrowserRouter([
@@ -50,6 +58,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
     children: [
+      { path: '/dashboard', element: <DashboardPage /> },
       { path: '/empresas', element: <CompaniesPage /> },
       { path: '/empresas/nova', element: <NewCompanyPage /> },
       { path: '/empresas/:companyId', element: <CompanyDetailsPage /> },
@@ -79,6 +88,13 @@ export const router = createBrowserRouter([
       { path: '/tarefas/nova', element: <NewTaskPage /> },
       { path: '/tarefas/:taskId', element: <TaskDetailsPage /> },
       { path: '/tarefas/:taskId/editar', element: <EditTaskPage /> },
+      { path: '/prospeccao', element: <ProspectingListsPage /> },
+      { path: '/prospeccao/nova', element: <NewProspectingListPage /> },
+      { path: '/prospeccao/:listId', element: <ProspectingListPage /> },
+      { path: '/cadencias', element: <CadencesPage /> },
+      { path: '/cadencias/nova', element: <NewCadencePage /> },
+      { path: '/cadencias/:cadenceId', element: <CadenceDetailsPage /> },
+      { path: '/cadencias/:cadenceId/editar', element: <EditCadencePage /> },
     ],
   },
   {

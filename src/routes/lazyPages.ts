@@ -6,6 +6,12 @@ export const ForgotPasswordPage = lazy(() =>
   })),
 )
 
+export const DashboardPage = lazy(() =>
+  import('@/features/dashboard/pages/DashboardPage').then((module) => ({
+    default: module.DashboardPage,
+  })),
+)
+
 export const LoginPage = lazy(() =>
   import('@/features/auth/pages/LoginPage').then((module) => ({ default: module.LoginPage })),
 )
@@ -188,5 +194,47 @@ export const TaskDetailsPage = lazy(() =>
 export const EditTaskPage = lazy(() =>
   import('@/features/tasks/pages/EditTaskPage').then((module) => ({
     default: module.EditTaskPage,
+  })),
+)
+
+export const ProspectingListsPage = lazy(() =>
+  import('@/features/prospecting/pages/ProspectingListsPage').then((module) => ({
+    default: module.ProspectingListsPage,
+  })),
+)
+
+export const NewProspectingListPage = lazy(() =>
+  import('@/features/prospecting/pages/NewProspectingListPage').then((module) => ({
+    default: module.NewProspectingListPage,
+  })),
+)
+
+export const ProspectingListPage = lazy(() =>
+  import('@/features/prospecting/pages/ProspectingListPage').then((module) => ({
+    default: module.ProspectingListPage,
+  })),
+)
+
+export const CadencesPage = lazy(() =>
+  import('@/features/cadences/pages/CadencesPage').then((module) => ({
+    default: module.CadencesPage,
+  })),
+)
+
+export const NewCadencePage = lazy(() =>
+  import('@/features/cadences/pages/NewCadencePage').then((module) => ({
+    default: module.NewCadencePage,
+  })),
+)
+
+export const CadenceDetailsPage = lazy(() =>
+  import('@/features/cadences/pages/CadenceDetailsPage').then((module) => ({
+    default: module.CadenceDetailsPage,
+  })),
+)
+
+export const EditCadencePage = lazy(() =>
+  import('@/features/cadences/pages/EditCadencePage').then((module) => ({
+    default: module.EditCadencePage,
   })),
 )

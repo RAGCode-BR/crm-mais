@@ -4,11 +4,14 @@ import {
   GitBranch,
   History,
   ListTodo,
+  LayoutDashboard,
   LogOut,
   Menu,
   Settings2,
+  UserRoundSearch,
   Target,
   X,
+  Workflow,
 } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
@@ -20,12 +23,15 @@ import { useOrganization } from '@/features/organizations/useOrganization'
 import { cn } from '@/lib/utils/cn'
 
 const navigation = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/empresas', label: 'Empresas', icon: Building2 },
   { to: '/contatos', label: 'Contatos', icon: ContactRound },
   { to: '/leads', label: 'Leads', icon: Target },
   { to: '/oportunidades', label: 'Oportunidades', icon: GitBranch },
   { to: '/timeline', label: 'Timeline', icon: History },
   { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
+  { to: '/prospeccao', label: 'Prospecção', icon: UserRoundSearch },
+  { to: '/cadencias', label: 'Cadências', icon: Workflow },
 ]
 
 export function AppShell() {
@@ -41,7 +47,7 @@ export function AppShell() {
         )}
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-5">
-          <NavLink className="flex items-center gap-2 font-semibold" to="/empresas">
+          <NavLink className="flex items-center gap-2 font-semibold" to="/dashboard">
             <span className="grid size-8 place-items-center rounded-lg bg-primary text-xs text-primary-foreground">
               C+
             </span>

@@ -11,7 +11,7 @@ function client() {
 }
 
 const taskColumns =
-  'id,organization_id,company_id,contact_id,lead_id,opportunity_id,assigned_member_id,title,description,priority,status,type,due_at,completed_at,created_at,updated_at,created_by'
+  'id,organization_id,company_id,contact_id,lead_id,opportunity_id,assigned_member_id,title,description,priority,status,type,due_at,completed_at,cadence_enrollment_id,cadence_step_id,created_at,updated_at,created_by'
 const activeStatuses: TaskStatus[] = ['pending', 'in_progress']
 
 export async function listTasks(

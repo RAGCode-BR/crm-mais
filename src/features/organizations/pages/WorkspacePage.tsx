@@ -64,7 +64,7 @@ export function WorkspacePage() {
               {activeOrganization ? (
                 <Link
                   className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
-                  to="/empresas"
+                  to="/dashboard"
                 >
                   Abrir CRM
                   <ChevronRight className="size-4" aria-hidden="true" />

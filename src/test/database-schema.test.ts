@@ -11,6 +11,9 @@ const expectedTables = [
   'activities',
   'attachments',
   'audit_logs',
+  'cadence_enrollments',
+  'cadence_steps',
+  'cadences',
   'companies',
   'contacts',
   'entity_tags',
@@ -24,6 +27,8 @@ const expectedTables = [
   'pipeline_stages',
   'pipelines',
   'profiles',
+  'prospecting_list_items',
+  'prospecting_lists',
   'tags',
   'tasks',
   'teams',
@@ -216,7 +221,7 @@ describe('CRM database migrations', () => {
     `)
 
     expect(tablesWithoutRls.rows).toEqual([])
-    expect(policies.rows[0]?.count).toBe(69)
+    expect(policies.rows[0]?.count).toBe(89)
   })
 
   it('keeps anon blocked and exposes read access only to authenticated users', async () => {
@@ -239,6 +244,30 @@ describe('CRM database migrations', () => {
     })
   })
 
+  it('exposes the dashboard RPC only to authenticated users', async () => {
+    const privileges = await database.query<{
+      anon_can_execute: boolean
+      authenticated_can_execute: boolean
+    }>(`
+      select
+        has_function_privilege(
+          'anon',
+          'public.get_commercial_dashboard(uuid,timestamptz,timestamptz,uuid,uuid,uuid,text,text,uuid)',
+          'execute'
+        ) as anon_can_execute,
+        has_function_privilege(
+          'authenticated',
+          'public.get_commercial_dashboard(uuid,timestamptz,timestamptz,uuid,uuid,uuid,text,text,uuid)',
+          'execute'
+        ) as authenticated_can_execute;
+    `)
+
+    expect(privileges.rows[0]).toEqual({
+      anon_can_execute: false,
+      authenticated_can_execute: true,
+    })
+  })
+
   it('installs updated_at triggers for every mutable table', async () => {
     const result = await database.query<{ count: number }>(`
       select count(*)::int as count
@@ -250,7 +279,7 @@ describe('CRM database migrations', () => {
         and t.tgname like '%_set_updated_at';
     `)
 
-    expect(result.rows[0]?.count).toBe(17)
+    expect(result.rows[0]?.count).toBe(22)
   })
 
   it('indexes every foreign-key column set', async () => {
@@ -687,6 +716,156 @@ describe('CRM database migrations', () => {
     }
   })
 
+  it('calculates dashboard metrics without bypassing organization RLS', async () => {
+    const dashboardOrganizationId = '10000000-0000-4000-8000-000000000004'
+    await authenticateAs(database, userAId)
+    try {
+      await database.exec(`
+        insert into public.organizations (id, name, slug)
+        values ('${dashboardOrganizationId}', 'Dashboard Organization', 'dashboard-organization');
+
+        insert into public.lead_sources (id, organization_id, name)
+        values (
+          '70000000-0000-4000-8000-000000000001',
+          '${dashboardOrganizationId}',
+          'Indicação'
+        );
+
+        insert into public.companies (id, organization_id, trade_name, industry)
+        values (
+          '20000000-0000-4000-8000-000000000010',
+          '${dashboardOrganizationId}',
+          'Dashboard Company',
+          'Tecnologia'
+        );
+
+        insert into public.leads (
+          id, organization_id, company_id, owner_member_id, lead_source_id, name, status
+        ) values (
+          '21000000-0000-4000-8000-000000000010',
+          '${dashboardOrganizationId}',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          '70000000-0000-4000-8000-000000000001',
+          'Qualified dashboard lead',
+          'qualified'
+        );
+
+        insert into public.activities (
+          organization_id, company_id, actor_member_id, type, subject
+        ) values
+        (
+          '${dashboardOrganizationId}',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          'meeting',
+          'Dashboard meeting'
+        ),
+        (
+          '${dashboardOrganizationId}',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          'proposal',
+          'Dashboard proposal'
+        );
+
+        insert into public.opportunities (
+          id, organization_id, title, company_id, owner_member_id, pipeline_id,
+          stage_id, lead_source_id, status, estimated_value, probability, closed_at,
+          product_service, loss_reason
+        ) values
+        (
+          '50000000-0000-4000-8000-000000000010',
+          '${dashboardOrganizationId}',
+          'Won dashboard opportunity',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          (select id from public.pipelines where organization_id = '${dashboardOrganizationId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${dashboardOrganizationId}' order by position limit 1),
+          '70000000-0000-4000-8000-000000000001',
+          'won', 1000, 100, now(), 'CRM', null
+        ),
+        (
+          '50000000-0000-4000-8000-000000000011',
+          '${dashboardOrganizationId}',
+          'Lost dashboard opportunity',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          (select id from public.pipelines where organization_id = '${dashboardOrganizationId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${dashboardOrganizationId}' order by position limit 1),
+          '70000000-0000-4000-8000-000000000001',
+          'lost', 500, 0, now(), 'CRM', 'Preço'
+        ),
+        (
+          '50000000-0000-4000-8000-000000000012',
+          '${dashboardOrganizationId}',
+          'Open dashboard opportunity',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          (select id from public.pipelines where organization_id = '${dashboardOrganizationId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${dashboardOrganizationId}' order by position limit 1),
+          '70000000-0000-4000-8000-000000000001',
+          'open', 2000, 25, null, 'CRM', null
+        );
+
+        insert into public.tasks (
+          organization_id, company_id, assigned_member_id, title, due_at
+        ) values (
+          '${dashboardOrganizationId}',
+          '20000000-0000-4000-8000-000000000010',
+          (select id from public.organization_members where organization_id = '${dashboardOrganizationId}'),
+          'Overdue dashboard task',
+          now() - interval '1 day'
+        );
+      `)
+
+      const result = await database.query<{
+        data: {
+          metrics: Record<string, number>
+          leadEvolution: Array<{ label: string; value: number }>
+        }
+      }>(`
+        select public.get_commercial_dashboard(
+          '${dashboardOrganizationId}',
+          now() - interval '1 day',
+          now() + interval '1 day'
+        ) as data;
+      `)
+      expect(result.rows[0]?.data.metrics).toMatchObject({
+        newLeads: 1,
+        qualifiedLeads: 1,
+        meetings: 1,
+        proposals: 1,
+        won: 1,
+        lost: 1,
+        conversionRate: 50,
+        averageTicket: 1000,
+        pipelineValue: 2000,
+        salesForecast: 500,
+        overdueTasks: 1,
+      })
+      expect(result.rows[0]?.data.leadEvolution.some(({ value }) => value === 1)).toBe(true)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ new_leads: number }>(`
+        select (
+          public.get_commercial_dashboard(
+            '${dashboardOrganizationId}',
+            now() - interval '1 day',
+            now() + interval '1 day'
+          ) -> 'metrics' ->> 'newLeads'
+        )::int as new_leads;
+      `)
+      expect(isolated.rows[0]?.new_leads).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
   it('enforces opportunity lifecycle consistency', async () => {
     await expect(
       database.exec(`
@@ -744,5 +923,212 @@ describe('CRM database migrations', () => {
       where id = '60000000-0000-4000-8000-000000000002';
     `)
     expect(reopened.rows[0]?.completed_at).toBeNull()
+  })
+
+  it('isolates prospecting lists and enforces their entity constraints', async () => {
+    await authenticateAs(database, userAId)
+    try {
+      await database.exec(`
+        insert into public.prospecting_lists (
+          id, organization_id, name, owner_member_id
+        ) values (
+          '80000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          'Construction prospects',
+          '11000000-0000-4000-8000-000000000001'
+        );
+
+        insert into public.prospecting_list_items (
+          id, organization_id, list_id, company_id, assigned_member_id
+        ) values (
+          '81000000-0000-4000-8000-000000000001',
+          '${organizationAId}',
+          '80000000-0000-4000-8000-000000000001',
+          '20000000-0000-4000-8000-000000000001',
+          '11000000-0000-4000-8000-000000000001'
+        );
+      `)
+
+      await expect(
+        database.exec(`
+          insert into public.prospecting_list_items (
+            organization_id, list_id, company_id, lead_id
+          ) values (
+            '${organizationAId}',
+            '80000000-0000-4000-8000-000000000001',
+            '20000000-0000-4000-8000-000000000001',
+            '21000000-0000-4000-8000-000000000001'
+          );
+        `),
+      ).rejects.toThrow(/single_entity_check/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.prospecting_lists
+        where id = '80000000-0000-4000-8000-000000000001';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+
+      await database.exec(`
+        insert into public.prospecting_lists (
+          id, organization_id, name
+        ) values (
+          '80000000-0000-4000-8000-000000000002',
+          '${organizationBId}',
+          'Sales-owned list'
+        );
+        insert into public.prospecting_list_items (
+          id, organization_id, list_id, company_id
+        ) values (
+          '81000000-0000-4000-8000-000000000002',
+          '${organizationBId}',
+          '80000000-0000-4000-8000-000000000002',
+          '20000000-0000-4000-8000-000000000002'
+        );
+        delete from public.prospecting_list_items
+        where id = '81000000-0000-4000-8000-000000000002';
+      `)
+      const removed = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.prospecting_list_items
+        where id = '81000000-0000-4000-8000-000000000002';
+      `)
+      expect(removed.rows[0]?.count).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await expect(
+        database.exec(`
+          insert into public.prospecting_lists (organization_id, name)
+          values ('${organizationAId}', 'Viewer list');
+        `),
+      ).rejects.toThrow(/row-level security/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('schedules, pauses, resumes and completes an internal task cadence', async () => {
+    const leadId = '21000000-0000-4000-8000-000000000090'
+    const enrollmentId = '82000000-0000-4000-8000-000000000001'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.leads (id, organization_id, name, email)
+        values ('${leadId}', '${organizationAId}', 'Cadence lead', 'cadence@example.com');
+      `)
+      const saved = await database.query<{ cadence_id: string }>(`
+        select public.save_cadence_configuration(
+          '${organizationAId}',
+          null,
+          'Novos clientes',
+          'Fluxo interno de validação',
+          'active',
+          '[
+            {"dayNumber": 1, "type": "email", "title": "E-mail inicial"},
+            {"dayNumber": 3, "type": "call", "title": "Ligação de acompanhamento"}
+          ]'::jsonb
+        )::text as cadence_id;
+      `)
+      const cadenceId = saved.rows[0]!.cadence_id
+
+      await database.exec(`
+        insert into public.cadence_enrollments (
+          id, organization_id, cadence_id, lead_id, assigned_member_id
+        ) values (
+          '${enrollmentId}', '${organizationAId}', '${cadenceId}', '${leadId}',
+          '11000000-0000-4000-8000-000000000004'
+        );
+      `)
+
+      const firstTask = await database.query<{ count: number; type: string }>(`
+        select count(*)::int as count, max(type) as type
+        from public.tasks
+        where cadence_enrollment_id = '${enrollmentId}' and status = 'pending';
+      `)
+      expect(firstTask.rows[0]).toMatchObject({ count: 1, type: 'email' })
+      await expect(
+        database.query(`select private.schedule_cadence_task('${enrollmentId}', false);`),
+      ).rejects.toThrow(/permission denied/i)
+
+      await database.query(`
+        select public.set_cadence_enrollment_status('${enrollmentId}', 'paused');
+      `)
+      const paused = await database.query<{ status: string; task_status: string }>(`
+        select e.status, max(t.status) as task_status
+        from public.cadence_enrollments e
+        join public.tasks t on t.cadence_enrollment_id = e.id
+        where e.id = '${enrollmentId}'
+        group by e.status;
+      `)
+      expect(paused.rows[0]).toMatchObject({ status: 'paused', task_status: 'cancelled' })
+
+      await database.query(`
+        select public.set_cadence_enrollment_status('${enrollmentId}', 'active');
+      `)
+      const resumed = await database.query<{ id: string }>(`
+        select id::text
+        from public.tasks
+        where cadence_enrollment_id = '${enrollmentId}' and status = 'pending';
+      `)
+      expect(resumed.rows).toHaveLength(1)
+
+      await database.exec(
+        `update public.tasks set status = 'completed' where id = '${resumed.rows[0]!.id}';`,
+      )
+      const secondTask = await database.query<{ id: string; type: string }>(`
+        select id::text, type
+        from public.tasks
+        where cadence_enrollment_id = '${enrollmentId}' and status = 'pending';
+      `)
+      expect(secondTask.rows).toHaveLength(1)
+      expect(secondTask.rows[0]?.type).toBe('call')
+
+      await database.exec(
+        `update public.tasks set status = 'completed' where id = '${secondTask.rows[0]!.id}';`,
+      )
+      const completed = await database.query<{ status: string; completed_at: string | null }>(`
+        select status, completed_at::text
+        from public.cadence_enrollments
+        where id = '${enrollmentId}';
+      `)
+      expect(completed.rows[0]?.status).toBe('completed')
+      expect(completed.rows[0]?.completed_at).not.toBeNull()
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.cadences
+        where organization_id = '${organizationAId}';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+      await expect(
+        database.query(`
+          select public.set_cadence_enrollment_status('${enrollmentId}', 'paused');
+        `),
+      ).rejects.toThrow(/insufficient permissions/i)
+      await expect(
+        database.query(`
+          select public.save_cadence_configuration(
+            '${organizationBId}', null, 'Unauthorized cadence', '', 'active',
+            '[{"dayNumber": 1, "type": "call", "title": "Call"}]'::jsonb
+          );
+        `),
+      ).rejects.toThrow(/insufficient permissions/i)
+    } finally {
+      await resetAuthentication(database)
+    }
   })
 })

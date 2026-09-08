@@ -48,6 +48,8 @@ export interface Task extends MutableOrganizationRecord {
   type: TaskType
   due_at: ISODateTime | null
   completed_at: ISODateTime | null
+  cadence_enrollment_id: UUID | null
+  cadence_step_id: UUID | null
 }
 
 export interface Note extends MutableOrganizationRecord {
