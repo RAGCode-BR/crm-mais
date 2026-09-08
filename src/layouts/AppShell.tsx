@@ -12,6 +12,10 @@ import {
   Target,
   X,
   Workflow,
+  BrainCircuit,
+  BellRing,
+  ChartNoAxesCombined,
+  Sparkles,
 } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
@@ -32,6 +36,10 @@ const navigation = [
   { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
   { to: '/prospeccao', label: 'Prospecção', icon: UserRoundSearch },
   { to: '/cadencias', label: 'Cadências', icon: Workflow },
+  { to: '/inteligencia/scoring', label: 'Inteligência', icon: BrainCircuit },
+  { to: '/inteligencia/assistente', label: 'Assistente IA', icon: Sparkles },
+  { to: '/prioridades', label: 'Prioridades', icon: BellRing },
+  { to: '/relatorios', label: 'Relatórios', icon: ChartNoAxesCombined },
 ]
 
 export function AppShell() {

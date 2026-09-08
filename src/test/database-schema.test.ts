@@ -14,9 +14,12 @@ const expectedTables = [
   'cadence_enrollments',
   'cadence_steps',
   'cadences',
+  'commercial_recommendation_rules',
   'companies',
   'contacts',
   'entity_tags',
+  'lead_score_results',
+  'lead_scoring_rules',
   'lead_sources',
   'leads',
   'notes',
@@ -221,7 +224,7 @@ describe('CRM database migrations', () => {
     `)
 
     expect(tablesWithoutRls.rows).toEqual([])
-    expect(policies.rows[0]?.count).toBe(89)
+    expect(policies.rows[0]?.count).toBe(98)
   })
 
   it('keeps anon blocked and exposes read access only to authenticated users', async () => {
@@ -279,7 +282,7 @@ describe('CRM database migrations', () => {
         and t.tgname like '%_set_updated_at';
     `)
 
-    expect(result.rows[0]?.count).toBe(22)
+    expect(result.rows[0]?.count).toBe(25)
   })
 
   it('indexes every foreign-key column set', async () => {
@@ -845,6 +848,47 @@ describe('CRM database migrations', () => {
         overdueTasks: 1,
       })
       expect(result.rows[0]?.data.leadEvolution.some(({ value }) => value === 1)).toBe(true)
+
+      const salesReport = await database.query<{
+        data: { metrics: Record<string, number>; funnel: unknown[]; stageTimes: unknown[] }
+      }>(`
+        select public.get_sales_report(
+          '${dashboardOrganizationId}', now() - interval '1 day', now() + interval '1 day'
+        ) as data;
+      `)
+      expect(salesReport.rows[0]?.data.metrics).toMatchObject({
+        closedRevenue: 1000,
+        openOpportunities: 1,
+        averageTicket: 1000,
+        pipelineValue: 2000,
+        salesForecast: 500,
+      })
+      expect(salesReport.rows[0]?.data.funnel).toHaveLength(5)
+      expect(salesReport.rows[0]?.data.stageTimes).toHaveLength(1)
+
+      const lossAnalysis = await database.query<{
+        data: {
+          summary: Record<string, number>
+          lossByReason: Array<{ label: string; value: number }>
+          conversionByOwner: unknown[]
+          conversionBySource: unknown[]
+          conversionByIndustry: unknown[]
+        }
+      }>(`
+        select public.get_loss_analysis(
+          '${dashboardOrganizationId}', now() - interval '1 day', now() + interval '1 day'
+        ) as data;
+      `)
+      expect(lossAnalysis.rows[0]?.data.summary).toMatchObject({
+        won: 1,
+        lost: 1,
+        lostValue: 500,
+        conversionRate: 50,
+      })
+      expect(lossAnalysis.rows[0]?.data.lossByReason).toContainEqual({ label: 'Preço', value: 1 })
+      expect(lossAnalysis.rows[0]?.data.conversionByOwner).toHaveLength(1)
+      expect(lossAnalysis.rows[0]?.data.conversionBySource).toHaveLength(1)
+      expect(lossAnalysis.rows[0]?.data.conversionByIndustry).toHaveLength(1)
     } finally {
       await resetAuthentication(database)
     }
@@ -861,6 +905,16 @@ describe('CRM database migrations', () => {
         )::int as new_leads;
       `)
       expect(isolated.rows[0]?.new_leads).toBe(0)
+      const isolatedReports = await database.query<{ sales: number; losses: number }>(`
+        select
+          (public.get_sales_report(
+            '${dashboardOrganizationId}', now() - interval '1 day', now() + interval '1 day'
+          ) -> 'metrics' ->> 'closedRevenue')::int as sales,
+          (public.get_loss_analysis(
+            '${dashboardOrganizationId}', now() - interval '1 day', now() + interval '1 day'
+          ) -> 'summary' ->> 'lost')::int as losses;
+      `)
+      expect(isolatedReports.rows[0]).toEqual({ sales: 0, losses: 0 })
     } finally {
       await resetAuthentication(database)
     }
@@ -1127,6 +1181,212 @@ describe('CRM database migrations', () => {
           );
         `),
       ).rejects.toThrow(/insufficient permissions/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('calculates explainable lead scores from configurable tenant rules', async () => {
+    const companyId = '20000000-0000-4000-8000-000000000090'
+    const leadId = '21000000-0000-4000-8000-000000000091'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.companies (
+          id, organization_id, trade_name, employee_count
+        ) values (
+          '${companyId}', '${organizationAId}', 'Scored Company', 100
+        );
+        insert into public.leads (
+          id, organization_id, company_id, name, temperature, status
+        ) values (
+          '${leadId}', '${organizationAId}', '${companyId}',
+          'Scored Lead', 'hot', 'new'
+        );
+        insert into public.activities (
+          organization_id, lead_id, type, subject
+        ) values
+          ('${organizationAId}', '${leadId}', 'whatsapp', 'WhatsApp replied'),
+          ('${organizationAId}', '${leadId}', 'meeting', 'Meeting completed');
+      `)
+
+      const initial = await database.query<{
+        score: number
+        classification: string
+        breakdown_count: number
+      }>(`
+        select score, classification, jsonb_array_length(breakdown)::int as breakdown_count
+        from public.lead_score_results
+        where organization_id = '${organizationAId}' and lead_id = '${leadId}';
+      `)
+      expect(initial.rows[0]).toMatchObject({
+        score: 80,
+        classification: 'very_hot',
+        breakdown_count: 4,
+      })
+
+      await database.exec(`
+        insert into public.lead_scoring_rules (
+          organization_id, name, rule_type, condition_value, points
+        ) values (
+          '${organizationAId}', 'Lead qualificado', 'lead_status', 'qualified', 5
+        );
+        update public.leads set status = 'qualified' where id = '${leadId}';
+      `)
+      const configured = await database.query<{ score: number }>(`
+        select score from public.leads where id = '${leadId}';
+      `)
+      expect(configured.rows[0]?.score).toBe(85)
+
+      const overview = await database.query<{ score: number; has_open_follow_up: boolean }>(`
+        select score, has_open_follow_up
+        from public.get_lead_scoring_overview('${organizationAId}')
+        where lead_id = '${leadId}';
+      `)
+      expect(overview.rows[0]).toMatchObject({ score: 85, has_open_follow_up: false })
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.lead_scoring_rules
+        where organization_id = '${organizationAId}';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+      await expect(
+        database.query(`select public.recalculate_organization_lead_scores('${organizationAId}');`),
+      ).rejects.toThrow(/insufficient permissions/i)
+      await expect(
+        database.exec(`
+          insert into public.lead_scoring_rules (
+            organization_id, name, rule_type, condition_value, points
+          ) values (
+            '${organizationBId}', 'Sales rule', 'lead_status', 'new', 10
+          );
+        `),
+      ).rejects.toThrow(/row-level security/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.lead_score_results
+        where organization_id = '${organizationAId}';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+      await expect(
+        database.query(`select public.recalculate_organization_lead_scores('${organizationAId}');`),
+      ).rejects.toThrow(/insufficient permissions/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await expect(
+        database.exec(`
+          insert into public.lead_scoring_rules (
+            organization_id, name, rule_type, condition_value, points
+          ) values ('${organizationAId}', 'Viewer rule', 'lead_status', 'new', 5);
+        `),
+      ).rejects.toThrow(/row-level security/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('returns explainable next-action recommendations without crossing tenants', async () => {
+    const staleLeadId = '21000000-0000-4000-8000-000000000092'
+    const hotLeadId = '21000000-0000-4000-8000-000000000093'
+    const stalledOpportunityId = '50000000-0000-4000-8000-000000000092'
+    const closingOpportunityId = '50000000-0000-4000-8000-000000000093'
+    const overdueTaskId = '60000000-0000-4000-8000-000000000092'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.leads (
+          id, organization_id, name, created_at, next_contact_at
+        ) values (
+          '${staleLeadId}', '${organizationAId}', 'Reactivation candidate',
+          now() - interval '100 days', now() - interval '1 day'
+        );
+        insert into public.leads (
+          id, organization_id, name, temperature
+        ) values (
+          '${hotLeadId}', '${organizationAId}', 'Hot lead without follow-up', 'hot'
+        );
+        insert into public.activities (organization_id, lead_id, type, subject)
+        values
+          ('${organizationAId}', '${hotLeadId}', 'whatsapp', 'WhatsApp response'),
+          ('${organizationAId}', '${hotLeadId}', 'meeting', 'Meeting held');
+
+        insert into public.tasks (
+          id, organization_id, assigned_member_id, title, type, due_at
+        ) values (
+          '${overdueTaskId}', '${organizationAId}',
+          '11000000-0000-4000-8000-000000000004',
+          'Overdue recommendation task', 'follow_up', now() - interval '2 days'
+        );
+
+        insert into public.opportunities (
+          id, organization_id, title, company_id, owner_member_id,
+          pipeline_id, stage_id, status, created_at
+        ) values (
+          '${stalledOpportunityId}', '${organizationAId}', 'Stalled deal',
+          '20000000-0000-4000-8000-000000000001',
+          '11000000-0000-4000-8000-000000000004',
+          (select id from public.pipelines where organization_id = '${organizationAId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${organizationAId}' order by position limit 1),
+          'open', now() - interval '20 days'
+        ), (
+          '${closingOpportunityId}', '${organizationAId}', 'Closing deal',
+          '20000000-0000-4000-8000-000000000001',
+          '11000000-0000-4000-8000-000000000004',
+          (select id from public.pipelines where organization_id = '${organizationAId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${organizationAId}' order by position limit 1),
+          'open', now()
+        );
+        update public.opportunities
+        set expected_close_date = current_date + 2
+        where id = '${closingOpportunityId}';
+      `)
+
+      const recommendations = await database.query<{ rule_code: string; entity_id: string }>(`
+        select rule_code, entity_id::text
+        from public.get_commercial_recommendations('${organizationAId}')
+        where entity_id in (
+          '${staleLeadId}', '${hotLeadId}', '${stalledOpportunityId}',
+          '${closingOpportunityId}', '${overdueTaskId}'
+        );
+      `)
+      const codes = recommendations.rows.map(({ rule_code }) => rule_code)
+      expect(codes).toEqual(
+        expect.arrayContaining([
+          'follow_up_due',
+          'reactivate_lead',
+          'high_score_no_task',
+          'stalled_opportunity',
+          'closing_soon',
+          'overdue_follow_up',
+        ]),
+      )
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.get_commercial_recommendations('${organizationAId}');
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
     } finally {
       await resetAuthentication(database)
     }

@@ -48,6 +48,14 @@ import {
   NewCadencePage,
   CadenceDetailsPage,
   EditCadencePage,
+  LeadScoringPage,
+  ScoringRulesPage,
+  NewScoringRulePage,
+  EditScoringRulePage,
+  PrioritiesPage,
+  ReportsPage,
+  LossAnalysisPage,
+  CommercialAssistantPage,
 } from './lazyPages'
 
 export const router = createBrowserRouter([
@@ -95,6 +103,17 @@ export const router = createBrowserRouter([
       { path: '/cadencias/nova', element: <NewCadencePage /> },
       { path: '/cadencias/:cadenceId', element: <CadenceDetailsPage /> },
       { path: '/cadencias/:cadenceId/editar', element: <EditCadencePage /> },
+      { path: '/inteligencia/scoring', element: <LeadScoringPage /> },
+      { path: '/inteligencia/scoring/regras', element: <ScoringRulesPage /> },
+      { path: '/inteligencia/scoring/regras/nova', element: <NewScoringRulePage /> },
+      {
+        path: '/inteligencia/scoring/regras/:ruleId/editar',
+        element: <EditScoringRulePage />,
+      },
+      { path: '/prioridades', element: <PrioritiesPage /> },
+      { path: '/relatorios', element: <ReportsPage /> },
+      { path: '/relatorios/perdas', element: <LossAnalysisPage /> },
+      { path: '/inteligencia/assistente', element: <CommercialAssistantPage /> },
     ],
   },
   {

@@ -4,6 +4,8 @@ import type { Activity, EntityTag, Note, Tag, Task } from './database/engagement
 import type { Organization, OrganizationMember, Profile, Team } from './database/identity'
 import type { Opportunity, Pipeline, PipelineStage } from './database/pipeline'
 import type { ProspectingList, ProspectingListItem } from './database/prospecting'
+import type { LeadScoreResult, LeadScoringRule } from './database/scoring'
+import type { CommercialRecommendationRule } from './database/recommendation'
 import type { Attachment, AuditLog, Notification } from './database/system'
 import type { Json } from './database/common'
 
@@ -68,9 +70,87 @@ export type Database = {
         CadenceEnrollment,
         'organization_id' | 'cadence_id' | 'lead_id' | 'assigned_member_id'
       >
+      lead_scoring_rules: TableDefinition<
+        LeadScoringRule,
+        'organization_id' | 'name' | 'rule_type' | 'condition_value' | 'points'
+      >
+      lead_score_results: TableDefinition<
+        LeadScoreResult,
+        'organization_id' | 'lead_id' | 'score' | 'classification'
+      >
+      commercial_recommendation_rules: TableDefinition<
+        CommercialRecommendationRule,
+        'organization_id' | 'code' | 'name' | 'priority'
+      >
     }
     Views: Record<string, never>
     Functions: {
+      get_sales_report: {
+        Args: {
+          target_organization_id: string
+          period_start: string
+          period_end: string
+          target_owner_member_id?: string | null
+          target_team_id?: string | null
+          target_lead_source_id?: string | null
+          target_industry?: string | null
+          target_product_service?: string | null
+          target_pipeline_id?: string | null
+        }
+        Returns: Json
+      }
+      get_loss_analysis: {
+        Args: {
+          target_organization_id: string
+          period_start: string
+          period_end: string
+          target_owner_member_id?: string | null
+          target_team_id?: string | null
+          target_lead_source_id?: string | null
+          target_industry?: string | null
+          target_product_service?: string | null
+          target_pipeline_id?: string | null
+        }
+        Returns: Json
+      }
+      get_commercial_recommendations: {
+        Args: { target_organization_id: string }
+        Returns: Array<{
+          recommendation_id: string
+          rule_code: string
+          category: string
+          priority: string
+          title: string
+          reason: string
+          action_label: string
+          action_path: string
+          entity_type: string
+          entity_id: string
+          owner_member_id: string | null
+          score: number | null
+          reference_at: string | null
+        }>
+      }
+      get_lead_scoring_overview: {
+        Args: { target_organization_id: string }
+        Returns: Array<{
+          lead_id: string
+          lead_name: string
+          company_name: string
+          owner_name: string
+          score: number
+          classification: string
+          breakdown: Json
+          calculated_at: string | null
+          last_activity_at: string | null
+          next_contact_at: string | null
+          has_open_follow_up: boolean
+        }>
+      }
+      recalculate_organization_lead_scores: {
+        Args: { target_organization_id: string }
+        Returns: number
+      }
       get_commercial_dashboard: {
         Args: {
           target_organization_id: string

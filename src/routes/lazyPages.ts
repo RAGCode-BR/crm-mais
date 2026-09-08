@@ -238,3 +238,51 @@ export const EditCadencePage = lazy(() =>
     default: module.EditCadencePage,
   })),
 )
+
+export const LeadScoringPage = lazy(() =>
+  import('@/features/scoring/pages/LeadScoringPage').then((module) => ({
+    default: module.LeadScoringPage,
+  })),
+)
+
+export const ScoringRulesPage = lazy(() =>
+  import('@/features/scoring/pages/ScoringRulesPage').then((module) => ({
+    default: module.ScoringRulesPage,
+  })),
+)
+
+export const NewScoringRulePage = lazy(() =>
+  import('@/features/scoring/pages/NewScoringRulePage').then((module) => ({
+    default: module.NewScoringRulePage,
+  })),
+)
+
+export const EditScoringRulePage = lazy(() =>
+  import('@/features/scoring/pages/EditScoringRulePage').then((module) => ({
+    default: module.EditScoringRulePage,
+  })),
+)
+
+export const PrioritiesPage = lazy(() =>
+  import('@/features/recommendations/pages/PrioritiesPage').then((module) => ({
+    default: module.PrioritiesPage,
+  })),
+)
+
+export const ReportsPage = lazy(() =>
+  import('@/features/reports/pages/ReportsPage').then((module) => ({
+    default: module.ReportsPage,
+  })),
+)
+
+export const LossAnalysisPage = lazy(() =>
+  import('@/features/reports/pages/LossAnalysisPage').then((module) => ({
+    default: module.LossAnalysisPage,
+  })),
+)
+
+export const CommercialAssistantPage = lazy(() =>
+  import('@/features/ai/pages/CommercialAssistantPage').then((module) => ({
+    default: module.CommercialAssistantPage,
+  })),
+)
