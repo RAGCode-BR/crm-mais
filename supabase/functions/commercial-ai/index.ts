@@ -1,5 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.114.0'
 
+import type { EdgeDatabase } from '../_shared/database.ts'
 import { loadCommercialContext, loadCompanyContext } from '../_shared/ai/context.ts'
 import { buildPrompt, responseSchema } from '../_shared/ai/prompt.ts'
 import { createAiProvider } from '../_shared/ai/provider.ts'
@@ -32,6 +33,7 @@ async function safetyIdentifier(userId: string) {
 }
 
 Deno.serve(async (request: Request) => {
+  const requestId = crypto.randomUUID()
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405)
   try {
@@ -40,7 +42,7 @@ Deno.serve(async (request: Request) => {
     const key = publishableKey()
     if (!authorization || !url || !key) return json({ error: 'Não autorizado.' }, 401)
     const token = authorization.replace(/^Bearer\s+/i, '')
-    const db = createClient(url, key, {
+    const db = createClient<EdgeDatabase>(url, key, {
       global: { headers: { Authorization: authorization } },
       auth: { persistSession: false, autoRefreshToken: false },
     })
@@ -96,6 +98,16 @@ Deno.serve(async (request: Request) => {
     const message =
       error instanceof Error ? error.message : 'Falha inesperada na análise comercial.'
     const status = message.includes('não foi configurada') ? 503 : 500
-    return json({ error: message }, status)
+    console.error(`[commercial-ai:${requestId}]`, error)
+    return json(
+      {
+        error:
+          status === 503
+            ? 'O assistente comercial está temporariamente indisponível.'
+            : 'Não foi possível concluir a análise comercial.',
+        requestId,
+      },
+      status,
+    )
   }
 })

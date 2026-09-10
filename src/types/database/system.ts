@@ -38,6 +38,13 @@ export interface Notification extends MutableOrganizationRecord {
   related_entity_type: string | null
   related_entity_id: UUID | null
   read_at: ISODateTime | null
+  dedupe_key: string | null
+}
+
+export interface NotificationPreference extends MutableOrganizationRecord {
+  member_id: UUID
+  type: NotificationType
+  in_app_enabled: boolean
 }
 
 export interface AuditLog extends OrganizationRecord {

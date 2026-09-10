@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/utils/cn'
 import type { Task, TaskStatus } from '@/types/database/engagement'
 import { isTaskOverdue } from '../task-date'
@@ -82,12 +83,18 @@ export function TaskCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="rounded-full bg-muted px-2 py-1 font-medium">
-              {taskTypeLabel(task.type)}
-            </span>
-            <span className="rounded-full bg-muted px-2 py-1">
+            <StatusBadge>{taskTypeLabel(task.type)}</StatusBadge>
+            <StatusBadge
+              variant={
+                task.priority === 'urgent'
+                  ? 'danger'
+                  : task.priority === 'high'
+                    ? 'warning'
+                    : 'neutral'
+              }
+            >
               {taskPriorityLabel(task.priority)}
-            </span>
+            </StatusBadge>
             <span className="text-muted-foreground">{taskStatusLabel(task.status)}</span>
           </div>
           <Link className="mt-3 block font-semibold hover:text-primary" to={`/tarefas/${task.id}`}>

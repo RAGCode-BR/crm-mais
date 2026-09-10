@@ -149,6 +149,12 @@ export const NewActivityPage = lazy(() =>
   })),
 )
 
+export const ActivityDetailsPage = lazy(() =>
+  import('@/features/timeline/pages/ActivityDetailsPage').then((module) => ({
+    default: module.ActivityDetailsPage,
+  })),
+)
+
 export const MyTasksPage = lazy(() =>
   import('@/features/tasks/pages/MyTasksPage').then((module) => ({
     default: module.MyTasksPage,
@@ -284,5 +290,69 @@ export const LossAnalysisPage = lazy(() =>
 export const CommercialAssistantPage = lazy(() =>
   import('@/features/ai/pages/CommercialAssistantPage').then((module) => ({
     default: module.CommercialAssistantPage,
+  })),
+)
+
+export const NotificationsPage = lazy(() =>
+  import('@/features/notifications/pages/NotificationsPage').then((module) => ({
+    default: module.NotificationsPage,
+  })),
+)
+
+export const NotificationPreferencesPage = lazy(() =>
+  import('@/features/notifications/pages/NotificationPreferencesPage').then((module) => ({
+    default: module.NotificationPreferencesPage,
+  })),
+)
+
+export const AuditPage = lazy(() =>
+  import('@/features/audit/pages/AuditPage').then((module) => ({
+    default: module.AuditPage,
+  })),
+)
+
+export const SettingsPage = lazy(() =>
+  import('@/features/settings/pages/SettingsPage').then((module) => ({
+    default: module.SettingsPage,
+  })),
+)
+export const OrganizationSettingsPage = lazy(() =>
+  import('@/features/settings/pages/OrganizationSettingsPage').then((module) => ({
+    default: module.OrganizationSettingsPage,
+  })),
+)
+export const MembersSettingsPage = lazy(() =>
+  import('@/features/settings/pages/MembersSettingsPage').then((module) => ({
+    default: module.MembersSettingsPage,
+  })),
+)
+export const TeamsSettingsPage = lazy(() =>
+  import('@/features/settings/pages/TeamsSettingsPage').then((module) => ({
+    default: module.TeamsSettingsPage,
+  })),
+)
+export const PermissionsSettingsPage = lazy(() =>
+  import('@/features/settings/pages/PermissionsSettingsPage').then((module) => ({
+    default: module.PermissionsSettingsPage,
+  })),
+)
+export const LeadSourcesSettingsPage = lazy(() =>
+  import('@/features/settings/pages/LeadSourcesSettingsPage').then((module) => ({
+    default: module.LeadSourcesSettingsPage,
+  })),
+)
+export const TagsSettingsPage = lazy(() =>
+  import('@/features/settings/pages/TagsSettingsPage').then((module) => ({
+    default: module.TagsSettingsPage,
+  })),
+)
+export const LossReasonsSettingsPage = lazy(() =>
+  import('@/features/settings/pages/LossReasonsSettingsPage').then((module) => ({
+    default: module.LossReasonsSettingsPage,
+  })),
+)
+export const PersonalSettingsPage = lazy(() =>
+  import('@/features/settings/pages/PersonalSettingsPage').then((module) => ({
+    default: module.PersonalSettingsPage,
   })),
 )

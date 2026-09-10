@@ -1,7 +1,7 @@
 import { BriefcaseBusiness, ListTodo, Target } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { cn } from '@/lib/utils/cn'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 
 import { recommendationPriorityLabel } from '../recommendation.constants'
 import type { CommercialRecommendation } from '../recommendation.types'
@@ -19,17 +19,17 @@ export function PriorityCard({ recommendation }: { recommendation: CommercialRec
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold">{recommendation.title}</h2>
-            <span
-              className={cn(
-                'rounded-full px-2 py-1 text-xs font-medium',
-                recommendation.priority === 'urgent' && 'bg-red-100 text-red-800',
-                recommendation.priority === 'high' && 'bg-orange-100 text-orange-800',
-                recommendation.priority === 'medium' && 'bg-amber-100 text-amber-800',
-                recommendation.priority === 'low' && 'bg-slate-100 text-slate-700',
-              )}
+            <StatusBadge
+              variant={
+                recommendation.priority === 'urgent'
+                  ? 'danger'
+                  : recommendation.priority === 'high' || recommendation.priority === 'medium'
+                    ? 'warning'
+                    : 'neutral'
+              }
             >
               {recommendationPriorityLabel(recommendation.priority)}
-            </span>
+            </StatusBadge>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{recommendation.reason}</p>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

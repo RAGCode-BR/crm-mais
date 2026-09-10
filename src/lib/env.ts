@@ -9,3 +9,7 @@ const parsedEnvironment = supabaseEnvironmentSchema.safeParse(import.meta.env)
 
 export const supabaseConfig = parsedEnvironment.success ? parsedEnvironment.data : null
 export const isSupabaseConfigured = supabaseConfig !== null
+
+export const featureFlags = {
+  commercialAi: import.meta.env.VITE_AI_ENABLED === 'true',
+} as const

@@ -1,10 +1,11 @@
-import { ArrowUpDown, Plus, Search } from 'lucide-react'
+import { ArrowUpDown, Plus } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatePanel } from '@/components/shared/StatePanel'
-import { Input } from '@/components/ui/Input'
+import { LoadingSkeleton } from '@/components/shared/LoadingSkeleton'
+import { SearchInput } from '@/components/shared/SearchInput'
 import { Select } from '@/components/ui/Select'
 import { useOrganization } from '@/features/organizations/useOrganization'
 
@@ -163,16 +164,14 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
       />
       <section className="rounded-xl border border-border bg-card">
         <div className="grid gap-3 border-b border-border p-4 md:grid-cols-2 xl:grid-cols-5">
-          <label className="relative md:col-span-2 xl:col-span-1">
-            <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-            <Input
-              aria-label="Buscar"
-              className="pl-9"
-              onChange={(event) => update('busca', event.target.value)}
-              placeholder="Buscar..."
-              value={filters.search}
-            />
-          </label>
+          <SearchInput
+            aria-label="Buscar registros"
+            className="md:col-span-2 xl:col-span-1"
+            onChange={(event) => update('busca', event.target.value)}
+            onClear={() => update('busca', '')}
+            placeholder="Buscar..."
+            value={filters.search}
+          />
           {entity !== 'contacts' ? (
             <Select
               aria-label="Status"
@@ -275,7 +274,7 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
         </div>
         {query.isLoading ? (
           <div className="p-4">
-            <StatePanel kind="loading">Carregando registros...</StatePanel>
+            <LoadingSkeleton rows={4} />
           </div>
         ) : query.error ? (
           <div className="p-4">

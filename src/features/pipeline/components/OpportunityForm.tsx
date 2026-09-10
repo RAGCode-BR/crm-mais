@@ -21,6 +21,7 @@ export function OpportunityForm({
   defaultValues,
   isSaving,
   leads,
+  lossReasons,
   members,
   onSave,
   pipelines,
@@ -32,6 +33,7 @@ export function OpportunityForm({
   defaultValues: OpportunityInput
   isSaving: boolean
   leads: RelatedOption[]
+  lossReasons: string[]
   members: Option[]
   onSave: (input: OpportunityInput) => Promise<void>
   pipelines: PipelineWithStages[]
@@ -196,7 +198,14 @@ export function OpportunityForm({
         </FormField>
         {status === 'lost' ? (
           <FormField error={errors.lossReason?.message} label="Motivo da perda" required>
-            <Input {...register('lossReason')} />
+            <>
+              <Input list="loss-reason-options" {...register('lossReason')} />
+              <datalist id="loss-reason-options">
+                {lossReasons.map((reason) => (
+                  <option key={reason} value={reason} />
+                ))}
+              </datalist>
+            </>
           </FormField>
         ) : null}
         {status === 'won' || status === 'lost' || status === 'discarded' ? (

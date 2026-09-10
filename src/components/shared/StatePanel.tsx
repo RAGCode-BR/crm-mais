@@ -11,7 +11,11 @@ export function StatePanel({
 }) {
   const Icon = kind === 'error' ? AlertTriangle : Inbox
   return (
-    <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+    <div
+      aria-live={kind === 'error' ? 'assertive' : 'polite'}
+      className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground"
+      role={kind === 'error' ? 'alert' : 'status'}
+    >
       {kind === 'loading' ? (
         <Spinner className="mx-auto mb-3" />
       ) : (

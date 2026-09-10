@@ -86,6 +86,7 @@ export function OpportunityEditor({ id }: { id?: string }) {
         defaultValues={defaults}
         isSaving={mutation.isPending}
         leads={data.leads}
+        lossReasons={data.lossReasons}
         members={data.members}
         onSave={async (input) => {
           const saved = await mutation.mutateAsync(input)

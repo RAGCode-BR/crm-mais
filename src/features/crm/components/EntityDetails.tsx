@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
 import { Button } from '@/components/ui/Button'
+import { AttachmentPanel } from '@/features/attachments/components/AttachmentPanel'
 import { useOrganization } from '@/features/organizations/useOrganization'
 import type { EntityKind } from '../crm.types'
 import { roleCanWrite, statusLabel, temperatureLabel } from '../crm.constants'
@@ -153,6 +154,17 @@ export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }
           </div>
         ))}
       </section>
+      {entity === 'companies' || entity === 'leads' ? (
+        <AttachmentPanel
+          membershipId={activeOrganization?.membershipId ?? ''}
+          role={activeOrganization?.role}
+          target={{
+            entityId: id,
+            entityType: entity === 'companies' ? 'company' : 'lead',
+            organizationId,
+          }}
+        />
+      ) : null}
       {canWrite ? (
         <section className="rounded-xl border border-red-200 bg-card p-5 dark:border-red-900">
           <h2 className="font-medium">Arquivar registro</h2>

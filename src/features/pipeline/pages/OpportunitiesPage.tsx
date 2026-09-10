@@ -3,13 +3,13 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
-import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { roleCanWrite } from '@/features/crm/crm.constants'
 import { useOrganization } from '@/features/organizations/useOrganization'
 import type { PipelineStage } from '@/types/database/pipeline'
 import { OpportunityCard } from '../components/OpportunityCard'
+import { LossReasonDialog } from '../components/LossReasonDialog'
 import { opportunityStatusOptions, pipelineCanManage } from '../pipeline.constants'
 import { useKanbanOpportunities, useMoveOpportunity, usePipelineLookups } from '../pipeline.hooks'
 
@@ -205,41 +205,21 @@ export function OpportunitiesPage() {
         </>
       )}
       {move.error ? <StatePanel kind="error">{move.error.message}</StatePanel> : null}
-      {pendingMove ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-          <section className="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-            <h2 className="text-lg font-semibold">Motivo da perda</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Informe o motivo antes de mover para uma etapa perdida.
-            </p>
-            <Input
-              autoFocus
-              className="mt-4"
-              onChange={(event) => setLossReason(event.target.value)}
-              placeholder="Ex.: orçamento insuficiente"
-              value={lossReason}
-            />
-            <div className="mt-5 flex justify-end gap-2">
-              <Button onClick={() => setPendingMove(null)} variant="ghost">
-                Cancelar
-              </Button>
-              <Button
-                disabled={!lossReason.trim()}
-                onClick={() => {
-                  move.mutate({
-                    opportunityId: pendingMove.opportunityId,
-                    stageId: pendingMove.stageId,
-                    lossReason,
-                  })
-                  setPendingMove(null)
-                }}
-              >
-                Confirmar movimento
-              </Button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      <LossReasonDialog
+        onCancel={() => setPendingMove(null)}
+        onConfirm={() => {
+          if (!pendingMove) return
+          move.mutate({
+            opportunityId: pendingMove.opportunityId,
+            stageId: pendingMove.stageId,
+            lossReason,
+          })
+          setPendingMove(null)
+        }}
+        onReasonChange={setLossReason}
+        open={Boolean(pendingMove)}
+        reason={lossReason}
+      />
     </div>
   )
 }

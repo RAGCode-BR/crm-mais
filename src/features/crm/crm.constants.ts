@@ -28,6 +28,9 @@ export const temperatureOptions: Option[] = [
 export const roleCanWrite = (role?: string) =>
   role === 'owner' || role === 'admin' || role === 'manager' || role === 'sales'
 
+export const roleCanManage = (role?: string) =>
+  role === 'owner' || role === 'admin' || role === 'manager'
+
 export const statusLabel = (value: string) =>
   [...companyStatusOptions, ...leadStatusOptions].find((option) => option.value === value)?.label ??
   value

@@ -1,0 +1,68 @@
+import type { AuditAction } from './audit.types'
+
+export const AUDIT_PAGE_SIZE = 20
+
+export const auditActionLabels: Record<AuditAction, string> = {
+  insert: 'Criação',
+  update: 'Alteração',
+  delete: 'Exclusão',
+}
+
+export const auditEntityLabels: Record<string, string> = {
+  activities: 'Atividade',
+  attachments: 'Anexo',
+  cadence_enrollments: 'Inscrição em cadência',
+  cadence_steps: 'Etapa de cadência',
+  cadences: 'Cadência',
+  commercial_recommendation_rules: 'Regra de recomendação',
+  companies: 'Empresa',
+  contacts: 'Contato',
+  entity_tags: 'Vínculo de tag',
+  lead_scoring_rules: 'Regra de scoring',
+  lead_sources: 'Origem de lead',
+  loss_reasons: 'Motivo de perda',
+  leads: 'Lead',
+  notes: 'Nota',
+  notification_preferences: 'Preferência de notificação',
+  opportunities: 'Oportunidade',
+  organization_members: 'Membro da organização',
+  organizations: 'Organização',
+  pipeline_stages: 'Etapa de pipeline',
+  pipelines: 'Pipeline',
+  prospecting_list_items: 'Item de prospecção',
+  prospecting_lists: 'Lista de prospecção',
+  tags: 'Tag',
+  tasks: 'Tarefa',
+  teams: 'Equipe',
+}
+
+export const auditFieldLabels: Record<string, string> = {
+  action: 'Ação',
+  active: 'Ativo',
+  actor_member_id: 'Responsável',
+  assigned_member_id: 'Responsável',
+  company_id: 'Empresa',
+  contact_id: 'Contato',
+  due_at: 'Vencimento',
+  estimated_value: 'Valor estimado',
+  expected_close_date: 'Previsão de fechamento',
+  full_name: 'Nome',
+  industry: 'Segmento',
+  is_active: 'Ativo',
+  lead_id: 'Lead',
+  name: 'Nome',
+  opportunity_id: 'Oportunidade',
+  owner_member_id: 'Responsável',
+  pipeline_id: 'Pipeline',
+  points: 'Pontos',
+  position: 'Posição',
+  priority: 'Prioridade',
+  probability: 'Probabilidade',
+  role: 'Perfil',
+  stage_id: 'Etapa',
+  status: 'Status',
+  subject: 'Assunto',
+  title: 'Título',
+  trade_name: 'Nome fantasia',
+  type: 'Tipo',
+}

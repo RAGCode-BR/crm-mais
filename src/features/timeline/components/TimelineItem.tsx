@@ -97,6 +97,12 @@ export function TimelineItem({ activity, maps }: { activity: Activity; maps: Loo
             ))}
           </div>
         ) : null}
+        <Link
+          className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
+          to={`/timeline/${activity.id}`}
+        >
+          Ver detalhes e anexos
+        </Link>
       </article>
     </li>
   )

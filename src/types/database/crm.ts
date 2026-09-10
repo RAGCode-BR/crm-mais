@@ -11,6 +11,12 @@ export interface LeadSource extends MutableOrganizationRecord {
   is_active: boolean
 }
 
+export interface LossReason extends MutableOrganizationRecord {
+  name: string
+  description: string | null
+  is_active: boolean
+}
+
 export interface Company extends MutableOrganizationRecord {
   trade_name: string
   legal_name: string | null

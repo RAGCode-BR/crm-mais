@@ -2,9 +2,11 @@ import { BrainCircuit, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 import { PageHeader } from '@/components/shared/PageHeader'
+import { StatePanel } from '@/components/shared/StatePanel'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Textarea'
 import { useOrganization } from '@/features/organizations/useOrganization'
+import { featureFlags } from '@/lib/env'
 
 import { commercialQuestions } from '../ai.constants'
 import { useCommercialAi } from '../ai.hooks'
@@ -19,6 +21,17 @@ export function CommercialAssistantPage() {
     if (!organizationId || !value.trim()) return
     setQuestion(value)
     ai.mutate({ mode: 'commercial_assistant', organizationId, question: value.trim() })
+  }
+  if (!featureFlags.commercialAi) {
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          description="Este recurso será liberado após a configuração segura do provedor."
+          title="Assistente comercial"
+        />
+        <StatePanel>O assistente de IA ainda não está configurado neste ambiente.</StatePanel>
+      </div>
+    )
   }
   return (
     <div className="space-y-6">

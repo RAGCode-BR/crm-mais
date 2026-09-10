@@ -1,13 +1,17 @@
 import { ArrowLeft, Pencil, Plus, Scale, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
 import { Button } from '@/components/ui/Button'
+import { StatusBadge } from '@/components/ui/StatusBadge'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { useOrganization } from '@/features/organizations/useOrganization'
 
 import { scoringCanManage, scoringRuleTypes } from '../scoring.constants'
 import { useDeleteScoringRule, useScoringRules } from '../scoring.hooks'
+import type { LeadScoringRule } from '@/types/database/scoring'
 
 export function ScoringRulesPage() {
   const { activeOrganization } = useOrganization()
@@ -15,6 +19,7 @@ export function ScoringRulesPage() {
   const query = useScoringRules(activeOrganization?.organizationId)
   const removeRule = useDeleteScoringRule(organizationId)
   const canManage = scoringCanManage(activeOrganization?.role)
+  const [deletingRule, setDeletingRule] = useState<LeadScoringRule | null>(null)
   return (
     <div className="space-y-6">
       <Link
@@ -74,9 +79,9 @@ export function ScoringRulesPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full bg-muted px-2 py-1 text-xs">
+                      <StatusBadge variant={rule.is_active ? 'success' : 'neutral'}>
                         {rule.is_active ? 'Ativa' : 'Inativa'}
-                      </span>
+                      </StatusBadge>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
@@ -93,10 +98,7 @@ export function ScoringRulesPage() {
                               aria-label={`Excluir ${rule.name}`}
                               className="size-9 px-0 text-red-600"
                               disabled={removeRule.isPending}
-                              onClick={() => {
-                                if (window.confirm(`Excluir a regra “${rule.name}”?`))
-                                  removeRule.mutate(rule.id)
-                              }}
+                              onClick={() => setDeletingRule(rule)}
                               variant="ghost"
                             >
                               <Trash2 className="size-4" />
@@ -118,6 +120,18 @@ export function ScoringRulesPage() {
         </StatePanel>
       )}
       {removeRule.error ? <StatePanel kind="error">{removeRule.error.message}</StatePanel> : null}
+      <ConfirmDialog
+        confirmLabel="Excluir regra"
+        description={`A regra “${deletingRule?.name ?? ''}” deixará de participar do cálculo de score.`}
+        onCancel={() => setDeletingRule(null)}
+        onConfirm={() => {
+          if (deletingRule)
+            removeRule.mutate(deletingRule.id, { onSuccess: () => setDeletingRule(null) })
+        }}
+        open={Boolean(deletingRule)}
+        pending={removeRule.isPending}
+        title="Excluir esta regra?"
+      />
     </div>
   )
 }

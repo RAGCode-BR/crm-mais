@@ -2,6 +2,7 @@ import { Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
 import { useOrganization } from '@/features/organizations/useOrganization'
+import { featureFlags } from '@/lib/env'
 
 import { useCommercialAi } from '../ai.hooks'
 import { AiResponsePanel } from './AiResponsePanel'
@@ -10,6 +11,7 @@ export function CompanySummaryPanel({ companyId }: { companyId: string }) {
   const { activeOrganization } = useOrganization()
   const ai = useCommercialAi()
   const organizationId = activeOrganization?.organizationId
+  if (!featureFlags.commercialAi) return null
   return (
     <section className="space-y-4 rounded-xl border border-border bg-card p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

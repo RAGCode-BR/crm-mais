@@ -1,6 +1,7 @@
-type SupabaseClient = ReturnType<
-  (typeof import('npm:@supabase/supabase-js@2.114.0'))['createClient']
->
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.114.0'
+import type { EdgeDatabase } from '../database.ts'
+
+type EdgeClient = SupabaseClient<EdgeDatabase>
 
 function assertResults(results: Array<{ error: { message: string } | null }>) {
   const failure = results.find((result) => result.error)
@@ -8,7 +9,7 @@ function assertResults(results: Array<{ error: { message: string } | null }>) {
 }
 
 export async function loadCompanyContext(
-  db: SupabaseClient,
+  db: EdgeClient,
   organizationId: string,
   companyId: string,
 ) {
@@ -72,7 +73,7 @@ export async function loadCompanyContext(
   }
 }
 
-export async function loadCommercialContext(db: SupabaseClient, organizationId: string) {
+export async function loadCommercialContext(db: EdgeClient, organizationId: string) {
   const periodEnd = new Date().toISOString().slice(0, 10)
   const start = new Date()
   start.setUTCDate(start.getUTCDate() - 180)
@@ -124,8 +125,8 @@ export async function loadCommercialContext(db: SupabaseClient, organizationId: 
   return {
     generatedAt: new Date().toISOString(),
     analysisPeriod: { periodStart, periodEnd },
-    recommendations: (recommendations.data ?? []).slice(0, 80),
-    leadScores: (scores.data ?? []).slice(0, 100),
+    recommendations: Array.isArray(recommendations.data) ? recommendations.data.slice(0, 80) : [],
+    leadScores: Array.isArray(scores.data) ? scores.data.slice(0, 100) : [],
     opportunities: opportunities.data ?? [],
     openTasks: tasks.data ?? [],
     recentActivities: activities.data ?? [],

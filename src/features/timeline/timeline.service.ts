@@ -13,6 +13,17 @@ function client() {
 const activityColumns =
   'id,organization_id,company_id,contact_id,lead_id,opportunity_id,actor_member_id,type,subject,description,occurred_at,metadata,created_at,updated_at,created_by'
 
+export async function getActivity(organizationId: string, activityId: string) {
+  const { data, error } = await client()
+    .from('activities')
+    .select(activityColumns)
+    .eq('organization_id', organizationId)
+    .eq('id', activityId)
+    .single()
+  if (error) throw error
+  return data as unknown as Activity
+}
+
 export async function listTimeline(
   organizationId: string,
   filters: TimelineFilters,

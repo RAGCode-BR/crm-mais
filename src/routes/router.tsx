@@ -1,11 +1,13 @@
 import { createBrowserRouter } from 'react-router-dom'
 
 import { GuestRoute, ProtectedRoute } from '@/features/auth'
-import { NotFoundPage } from '@/pages/NotFoundPage'
 import { AppShell } from '@/layouts/AppShell'
+import { NotFoundPage } from '@/pages/NotFoundPage'
+import { RouteErrorPage } from '@/pages/RouteErrorPage'
 
 import {
   ForgotPasswordPage,
+  ActivityDetailsPage,
   DashboardPage,
   CompaniesPage,
   CompanyDetailsPage,
@@ -56,10 +58,23 @@ import {
   ReportsPage,
   LossAnalysisPage,
   CommercialAssistantPage,
+  NotificationsPage,
+  NotificationPreferencesPage,
+  AuditPage,
+  SettingsPage,
+  OrganizationSettingsPage,
+  MembersSettingsPage,
+  TeamsSettingsPage,
+  PermissionsSettingsPage,
+  LeadSourcesSettingsPage,
+  TagsSettingsPage,
+  LossReasonsSettingsPage,
+  PersonalSettingsPage,
 } from './lazyPages'
 
 export const router = createBrowserRouter([
   {
+    errorElement: <RouteErrorPage />,
     element: (
       <ProtectedRoute>
         <AppShell />
@@ -88,6 +103,7 @@ export const router = createBrowserRouter([
       { path: '/pipelines/:pipelineId/editar', element: <EditPipelinePage /> },
       { path: '/timeline', element: <TimelinePage /> },
       { path: '/timeline/nova', element: <NewActivityPage /> },
+      { path: '/timeline/:activityId', element: <ActivityDetailsPage /> },
       { path: '/tarefas', element: <MyTasksPage /> },
       { path: '/tarefas/hoje', element: <TodayTasksPage /> },
       { path: '/tarefas/atrasadas', element: <OverdueTasksPage /> },
@@ -114,9 +130,22 @@ export const router = createBrowserRouter([
       { path: '/relatorios', element: <ReportsPage /> },
       { path: '/relatorios/perdas', element: <LossAnalysisPage /> },
       { path: '/inteligencia/assistente', element: <CommercialAssistantPage /> },
+      { path: '/notificacoes', element: <NotificationsPage /> },
+      { path: '/notificacoes/preferencias', element: <NotificationPreferencesPage /> },
+      { path: '/auditoria', element: <AuditPage /> },
+      { path: '/configuracoes', element: <SettingsPage /> },
+      { path: '/configuracoes/organizacao', element: <OrganizationSettingsPage /> },
+      { path: '/configuracoes/usuarios', element: <MembersSettingsPage /> },
+      { path: '/configuracoes/equipes', element: <TeamsSettingsPage /> },
+      { path: '/configuracoes/permissoes', element: <PermissionsSettingsPage /> },
+      { path: '/configuracoes/origens', element: <LeadSourcesSettingsPage /> },
+      { path: '/configuracoes/tags', element: <TagsSettingsPage /> },
+      { path: '/configuracoes/motivos-de-perda', element: <LossReasonsSettingsPage /> },
+      { path: '/configuracoes/pessoais', element: <PersonalSettingsPage /> },
     ],
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/',
     element: (
       <ProtectedRoute>
@@ -125,6 +154,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/login',
     element: (
       <GuestRoute>
@@ -133,6 +163,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/cadastro',
     element: (
       <GuestRoute>
@@ -141,6 +172,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/recuperar-senha',
     element: (
       <GuestRoute>
@@ -149,10 +181,12 @@ export const router = createBrowserRouter([
     ),
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/redefinir-senha',
     element: <ResetPasswordPage />,
   },
   {
+    errorElement: <RouteErrorPage />,
     path: '/organizacoes',
     element: (
       <ProtectedRoute>

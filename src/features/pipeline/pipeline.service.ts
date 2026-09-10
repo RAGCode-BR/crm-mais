@@ -196,7 +196,7 @@ export async function moveOpportunity(
 }
 
 export async function loadPipelineLookups(organizationId: string) {
-  const [crm, pipelines, leadsResult] = await Promise.all([
+  const [crm, pipelines, leadsResult, lossReasonsResult] = await Promise.all([
     loadCrmLookups(organizationId),
     listPipelines(organizationId),
     client()
@@ -205,8 +205,15 @@ export async function loadPipelineLookups(organizationId: string) {
       .eq('organization_id', organizationId)
       .is('archived_at', null)
       .order('name'),
+    client()
+      .from('loss_reasons')
+      .select('id,name')
+      .eq('organization_id', organizationId)
+      .eq('is_active', true)
+      .order('name'),
   ])
   if (leadsResult.error) throw leadsResult.error
+  if (lossReasonsResult.error) throw lossReasonsResult.error
   return {
     ...crm,
     pipelines,
@@ -215,5 +222,6 @@ export async function loadPipelineLookups(organizationId: string) {
       label: String(lead.name),
       companyId: lead.company_id ? String(lead.company_id) : '',
     })),
+    lossReasons: (lossReasonsResult.data ?? []).map((reason) => String(reason.name)),
   }
 }

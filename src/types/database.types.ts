@@ -1,4 +1,4 @@
-import type { Company, Contact, Lead, LeadSource } from './database/crm'
+import type { Company, Contact, Lead, LeadSource, LossReason } from './database/crm'
 import type { Cadence, CadenceEnrollment, CadenceStep } from './database/cadence'
 import type { Activity, EntityTag, Note, Tag, Task } from './database/engagement'
 import type { Organization, OrganizationMember, Profile, Team } from './database/identity'
@@ -6,7 +6,7 @@ import type { Opportunity, Pipeline, PipelineStage } from './database/pipeline'
 import type { ProspectingList, ProspectingListItem } from './database/prospecting'
 import type { LeadScoreResult, LeadScoringRule } from './database/scoring'
 import type { CommercialRecommendationRule } from './database/recommendation'
-import type { Attachment, AuditLog, Notification } from './database/system'
+import type { Attachment, AuditLog, Notification, NotificationPreference } from './database/system'
 import type { Json } from './database/common'
 
 type TableDefinition<Row extends object, RequiredInsert extends keyof Row> = {
@@ -28,6 +28,7 @@ export type Database = {
       teams: TableDefinition<Team, 'organization_id' | 'name'>
       organization_members: TableDefinition<OrganizationMember, 'organization_id' | 'profile_id'>
       lead_sources: TableDefinition<LeadSource, 'organization_id' | 'name'>
+      loss_reasons: TableDefinition<LossReason, 'organization_id' | 'name'>
       companies: TableDefinition<Company, 'organization_id' | 'trade_name'>
       contacts: TableDefinition<Contact, 'organization_id' | 'company_id' | 'first_name'>
       leads: TableDefinition<Lead, 'organization_id' | 'name'>
@@ -58,6 +59,10 @@ export type Database = {
         Notification,
         'organization_id' | 'recipient_member_id' | 'type' | 'title'
       >
+      notification_preferences: TableDefinition<
+        NotificationPreference,
+        'organization_id' | 'member_id' | 'type'
+      >
       audit_logs: TableDefinition<AuditLog, 'organization_id' | 'entity_type' | 'action'>
       prospecting_lists: TableDefinition<ProspectingList, 'organization_id' | 'name'>
       prospecting_list_items: TableDefinition<ProspectingListItem, 'organization_id' | 'list_id'>
@@ -85,6 +90,26 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      refresh_my_notifications: {
+        Args: { target_organization_id: string }
+        Returns: number
+      }
+      search_global: {
+        Args: {
+          target_organization_id: string
+          search_text: string
+          result_limit?: number
+        }
+        Returns: Array<{
+          entity_type: 'company' | 'contact' | 'lead' | 'opportunity' | 'task'
+          entity_id: string
+          title: string
+          subtitle: string
+          action_path: string
+          rank: number
+          updated_at: string
+        }>
+      }
       get_sales_report: {
         Args: {
           target_organization_id: string

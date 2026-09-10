@@ -22,7 +22,9 @@ const expectedTables = [
   'lead_scoring_rules',
   'lead_sources',
   'leads',
+  'loss_reasons',
   'notes',
+  'notification_preferences',
   'notifications',
   'opportunities',
   'organization_members',
@@ -67,6 +69,7 @@ describe('CRM database migrations', () => {
       create role authenticated;
       create role service_role;
       create schema auth;
+      create schema storage;
       create table auth.users (
         id uuid primary key,
         email text,
@@ -81,6 +84,23 @@ describe('CRM database migrations', () => {
       $$;
       grant usage on schema auth to anon, authenticated;
       grant execute on function auth.uid() to anon, authenticated;
+
+      create table storage.buckets (
+        id text primary key,
+        name text not null,
+        public boolean not null default false,
+        file_size_limit bigint,
+        allowed_mime_types text[]
+      );
+      create table storage.objects (
+        id bigint generated always as identity primary key,
+        bucket_id text not null references storage.buckets (id),
+        name text not null,
+        owner_id text
+      );
+      alter table storage.objects enable row level security;
+      grant usage on schema storage to authenticated;
+      grant select, insert, update, delete on storage.objects to authenticated;
     `)
 
     const migrationFiles = (await readdir(migrationsPath))
@@ -217,14 +237,19 @@ describe('CRM database migrations', () => {
         and c.relkind = 'r'
         and not c.relrowsecurity;
     `)
-    const policies = await database.query<{ count: number }>(`
-      select count(*)::int as count
+    const policies = await database.query<{ schemaname: string; count: number }>(`
+      select schemaname, count(*)::int as count
       from pg_policies
-      where schemaname = 'public';
+      where schemaname in ('public', 'storage')
+      group by schemaname
+      order by schemaname;
     `)
 
     expect(tablesWithoutRls.rows).toEqual([])
-    expect(policies.rows[0]?.count).toBe(98)
+    expect(policies.rows).toEqual([
+      { schemaname: 'public', count: 104 },
+      { schemaname: 'storage', count: 3 },
+    ])
   })
 
   it('keeps anon blocked and exposes read access only to authenticated users', async () => {
@@ -282,7 +307,7 @@ describe('CRM database migrations', () => {
         and t.tgname like '%_set_updated_at';
     `)
 
-    expect(result.rows[0]?.count).toBe(25)
+    expect(result.rows[0]?.count).toBe(27)
   })
 
   it('indexes every foreign-key column set', async () => {
@@ -344,6 +369,66 @@ describe('CRM database migrations', () => {
     } finally {
       await resetAuthentication(database)
     }
+  })
+
+  it('blocks cross-tenant reads, updates and deletes for every critical CRM entity', async () => {
+    const contactId = '22000000-0000-4000-8000-000000000098'
+    const leadId = '21000000-0000-4000-8000-000000000098'
+    const pipelineId = '30000000-0000-4000-8000-000000000098'
+    const stageId = '40000000-0000-4000-8000-000000000098'
+    const opportunityId = '50000000-0000-4000-8000-000000000098'
+    const taskId = '60000000-0000-4000-8000-000000000098'
+
+    await database.exec(`
+      insert into public.contacts (id, organization_id, company_id, first_name)
+      values ('${contactId}', '${organizationBId}', '20000000-0000-4000-8000-000000000002', 'Private B');
+      insert into public.leads (id, organization_id, company_id, contact_id, name)
+      values ('${leadId}', '${organizationBId}', '20000000-0000-4000-8000-000000000002', '${contactId}', 'Private B lead');
+      insert into public.pipelines (id, organization_id, name)
+      values ('${pipelineId}', '${organizationBId}', 'Private B pipeline');
+      insert into public.pipeline_stages (id, organization_id, pipeline_id, name, position)
+      values ('${stageId}', '${organizationBId}', '${pipelineId}', 'Private B stage', 1);
+      insert into public.opportunities (
+        id, organization_id, title, company_id, contact_id, lead_id, pipeline_id, stage_id
+      ) values (
+        '${opportunityId}', '${organizationBId}', 'Private B opportunity',
+        '20000000-0000-4000-8000-000000000002', '${contactId}', '${leadId}',
+        '${pipelineId}', '${stageId}'
+      );
+      insert into public.tasks (id, organization_id, lead_id, title)
+      values ('${taskId}', '${organizationBId}', '${leadId}', 'Private B task');
+    `)
+
+    await authenticateAs(database, userAId)
+    try {
+      for (const [table, id] of [
+        ['companies', '20000000-0000-4000-8000-000000000002'],
+        ['contacts', contactId],
+        ['leads', leadId],
+        ['opportunities', opportunityId],
+        ['tasks', taskId],
+      ]) {
+        const hidden = await database.query<{ count: number }>(`
+          select count(*)::int as count from public.${table} where id = '${id}';
+        `)
+        expect(hidden.rows[0]?.count).toBe(0)
+        await database.exec(`update public.${table} set updated_at = now() where id = '${id}';`)
+        await database.exec(`delete from public.${table} where id = '${id}';`)
+      }
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const preserved = await database.query<{ count: number }>(`
+      select (
+        (select count(*) from public.companies where id = '20000000-0000-4000-8000-000000000002') +
+        (select count(*) from public.contacts where id = '${contactId}') +
+        (select count(*) from public.leads where id = '${leadId}') +
+        (select count(*) from public.opportunities where id = '${opportunityId}') +
+        (select count(*) from public.tasks where id = '${taskId}')
+      )::int as count;
+    `)
+    expect(preserved.rows[0]?.count).toBe(5)
   })
 
   it('creates the first owner membership in the same organization transaction', async () => {
@@ -1385,6 +1470,393 @@ describe('CRM database migrations', () => {
       const isolated = await database.query<{ count: number }>(`
         select count(*)::int as count
         from public.get_commercial_recommendations('${organizationAId}');
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('searches all commercial entities by relevance without crossing tenants', async () => {
+    const companyId = '20000000-0000-4000-8000-000000000094'
+    const contactId = '22000000-0000-4000-8000-000000000094'
+    const leadId = '21000000-0000-4000-8000-000000000094'
+    const opportunityId = '50000000-0000-4000-8000-000000000094'
+    const taskId = '60000000-0000-4000-8000-000000000094'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.companies (id, organization_id, trade_name, industry)
+        values ('${companyId}', '${organizationAId}', 'Therapeutica', 'Saúde');
+
+        insert into public.contacts (
+          id, organization_id, company_id, first_name, last_name, job_title
+        ) values (
+          '${contactId}', '${organizationAId}', '${companyId}', 'João', 'Silva', 'Compras'
+        );
+        insert into public.leads (id, organization_id, company_id, contact_id, name)
+        values (
+          '${leadId}', '${organizationAId}', '${companyId}', '${contactId}',
+          'Expansão Therapeutica'
+        );
+        insert into public.opportunities (
+          id, organization_id, title, company_id, contact_id, lead_id,
+          pipeline_id, stage_id, product_service
+        ) values (
+          '${opportunityId}', '${organizationAId}', 'Sistema de Estoque',
+          '${companyId}', '${contactId}', '${leadId}',
+          (select id from public.pipelines where organization_id = '${organizationAId}' limit 1),
+          (select id from public.pipeline_stages where organization_id = '${organizationAId}' order by position limit 1),
+          'ERP Therapeutica'
+        );
+        insert into public.tasks (
+          id, organization_id, company_id, lead_id, opportunity_id, title
+        ) values (
+          '${taskId}', '${organizationAId}', '${companyId}', '${leadId}',
+          '${opportunityId}', 'Follow-up Therapeutica'
+        );
+      `)
+
+      const results = await database.query<{
+        entity_type: string
+        title: string
+        action_path: string
+      }>(`
+        select entity_type, title, action_path
+        from public.search_global('${organizationAId}', 'Thera', 25);
+      `)
+      expect(results.rows.map(({ entity_type }) => entity_type)).toEqual(
+        expect.arrayContaining(['company', 'contact', 'lead', 'opportunity', 'task']),
+      )
+      expect(results.rows.every(({ action_path }) => action_path.startsWith('/'))).toBe(true)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.search_global('${organizationAId}', 'Therapeutica', 25);
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const privileges = await database.query<{ anon_execute: boolean }>(`
+      select has_function_privilege(
+        'anon', 'public.search_global(uuid,text,integer)', 'execute'
+      ) as anon_execute;
+    `)
+    expect(privileges.rows[0]?.anon_execute).toBe(false)
+  })
+
+  it('creates private notifications and respects recipient preferences', async () => {
+    const assignedLeadId = '21000000-0000-4000-8000-000000000095'
+    const mutedLeadId = '21000000-0000-4000-8000-000000000096'
+    const overdueTaskId = '60000000-0000-4000-8000-000000000095'
+    const managerMemberId = '11000000-0000-4000-8000-000000000004'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.leads (id, organization_id, name, owner_member_id)
+        values (
+          '${assignedLeadId}', '${organizationAId}', 'Assigned notification lead',
+          '${managerMemberId}'
+        );
+        insert into public.tasks (
+          id, organization_id, assigned_member_id, title, due_at
+        ) values (
+          '${overdueTaskId}', '${organizationAId}', '${managerMemberId}',
+          'Overdue notification task', now() - interval '1 day'
+        );
+      `)
+
+      const refreshed = await database.query<{ refresh_my_notifications: number }>(`
+        select public.refresh_my_notifications('${organizationAId}');
+      `)
+      expect(refreshed.rows[0]?.refresh_my_notifications).toBeGreaterThanOrEqual(1)
+
+      const notifications = await database.query<{ type: string; related_entity_id: string }>(`
+        select type, related_entity_id::text
+        from public.notifications
+        where organization_id = '${organizationAId}'
+          and recipient_member_id = '${managerMemberId}'
+          and related_entity_id in ('${assignedLeadId}', '${overdueTaskId}');
+      `)
+      expect(notifications.rows).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'lead_assigned', related_entity_id: assignedLeadId }),
+          expect.objectContaining({ type: 'task_overdue', related_entity_id: overdueTaskId }),
+        ]),
+      )
+
+      await database.exec(`
+        insert into public.notification_preferences (
+          organization_id, member_id, type, in_app_enabled
+        ) values (
+          '${organizationAId}', '${managerMemberId}', 'lead_assigned', false
+        );
+        insert into public.leads (id, organization_id, name, owner_member_id)
+        values (
+          '${mutedLeadId}', '${organizationAId}', 'Muted assignment', '${managerMemberId}'
+        );
+      `)
+      const muted = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.notifications
+        where related_entity_id = '${mutedLeadId}';
+      `)
+      expect(muted.rows[0]?.count).toBe(0)
+
+      await database.exec(`
+        update public.notifications set read_at = now()
+        where organization_id = '${organizationAId}'
+          and recipient_member_id = '${managerMemberId}';
+      `)
+      const unread = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.notifications
+        where organization_id = '${organizationAId}'
+          and recipient_member_id = '${managerMemberId}' and read_at is null;
+      `)
+      expect(unread.rows[0]?.count).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.notifications
+        where organization_id = '${organizationAId}';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+      await expect(
+        database.query(`select public.refresh_my_notifications('${organizationAId}');`),
+      ).rejects.toThrow(/insufficient permissions/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('isolates private attachments and validates organization paths', async () => {
+    const path = `${organizationAId}/companies/20000000-0000-4000-8000-000000000001/proposal.pdf`
+
+    const bucket = await database.query<{ public: boolean; file_size_limit: number }>(`
+      select public, file_size_limit::int
+      from storage.buckets
+      where id = 'crm-private-attachments';
+    `)
+    expect(bucket.rows[0]).toEqual({ public: false, file_size_limit: 20 * 1024 * 1024 })
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into storage.objects (bucket_id, name, owner_id)
+        values ('crm-private-attachments', '${path}', '${managerAId}');
+
+        insert into public.attachments (
+          organization_id, company_id, uploaded_by_member_id,
+          storage_bucket, storage_path, file_name, mime_type, size_bytes
+        ) values (
+          '${organizationAId}', '20000000-0000-4000-8000-000000000001',
+          '11000000-0000-4000-8000-000000000001',
+          'crm-private-attachments', '${path}', 'proposal.pdf', 'application/pdf', 128
+        );
+      `)
+      const metadata = await database.query<{ uploaded_by_member_id: string }>(`
+        select uploaded_by_member_id::text from public.attachments where storage_path = '${path}';
+      `)
+      expect(metadata.rows[0]?.uploaded_by_member_id).toBe('11000000-0000-4000-8000-000000000004')
+      await expect(
+        database.exec(`
+          insert into public.attachments (
+            organization_id, company_id, uploaded_by_member_id,
+            storage_bucket, storage_path, file_name, size_bytes
+          ) values (
+            '${organizationAId}', '20000000-0000-4000-8000-000000000001',
+            '11000000-0000-4000-8000-000000000004',
+            'crm-private-attachments',
+            '${organizationBId}/companies/20000000-0000-4000-8000-000000000001/invalid.pdf',
+            'invalid.pdf', 10
+          );
+        `),
+      ).rejects.toThrow(/does not match/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const objects = await database.query<{ count: number }>(`
+        select count(*)::int as count from storage.objects
+        where bucket_id = 'crm-private-attachments';
+      `)
+      expect(objects.rows[0]?.count).toBe(0)
+      await expect(
+        database.exec(`
+          insert into storage.objects (bucket_id, name, owner_id)
+          values ('crm-private-attachments', '${path}-cross-tenant', '${userBId}');
+        `),
+      ).rejects.toThrow(/row-level security/i)
+
+      const orphanPath = `${organizationBId}/companies/20000000-0000-4000-8000-000000000002/orphan.pdf`
+      const linkedPath = `${organizationBId}/companies/20000000-0000-4000-8000-000000000002/linked.pdf`
+      await database.exec(`
+        insert into storage.objects (bucket_id, name, owner_id)
+        values ('crm-private-attachments', '${orphanPath}', '${userBId}');
+        delete from storage.objects where name = '${orphanPath}';
+
+        insert into storage.objects (bucket_id, name, owner_id)
+        values ('crm-private-attachments', '${linkedPath}', '${userBId}');
+        insert into public.attachments (
+          organization_id, company_id, uploaded_by_member_id,
+          storage_bucket, storage_path, file_name, size_bytes
+        ) values (
+          '${organizationBId}', '20000000-0000-4000-8000-000000000002',
+          '11000000-0000-4000-8000-000000000002',
+          'crm-private-attachments', '${linkedPath}', 'linked.pdf', 10
+        );
+      `)
+      await database.exec(`delete from storage.objects where name = '${linkedPath}';`)
+      const linkedObject = await database.query<{ count: number }>(`
+        select count(*)::int as count from storage.objects where name = '${linkedPath}';
+      `)
+      expect(linkedObject.rows[0]?.count).toBe(1)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      const objects = await database.query<{ count: number }>(`
+        select count(*)::int as count from storage.objects
+        where bucket_id = 'crm-private-attachments';
+      `)
+      expect(objects.rows[0]?.count).toBe(1)
+      await expect(
+        database.exec(`
+          insert into storage.objects (bucket_id, name, owner_id)
+          values ('crm-private-attachments', '${path}-viewer', '${viewerAId}');
+        `),
+      ).rejects.toThrow(/row-level security/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+  })
+
+  it('records sanitized append-only audit events without crossing tenants', async () => {
+    const companyId = '20000000-0000-4000-8000-000000000097'
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.companies (
+          id, organization_id, trade_name, legal_name, tax_id, email, phone, notes
+        ) values (
+          '${companyId}', '${organizationAId}', 'Audited Company', 'Audited Company Ltda.',
+          '00.000.000/0001-00', 'private@example.com', '+55 11 99999-9999', 'Private note'
+        );
+        update public.companies
+        set trade_name = 'Audited Company Updated', employee_count = 25
+        where id = '${companyId}';
+      `)
+
+      const events = await database.query<{
+        action: string
+        previous_values: Record<string, unknown> | null
+        new_values: Record<string, unknown> | null
+        actor_member_id: string | null
+      }>(`
+        select action, previous_values, new_values, actor_member_id::text
+        from public.audit_logs
+        where organization_id = '${organizationAId}'
+          and entity_type = 'companies'
+          and entity_id = '${companyId}'
+        order by created_at;
+      `)
+      expect(events.rows).toHaveLength(2)
+      const insertEvent = events.rows.find((event) => event.action === 'insert')
+      const updateEvent = events.rows.find((event) => event.action === 'update')
+      expect(insertEvent).toMatchObject({
+        action: 'insert',
+        actor_member_id: '11000000-0000-4000-8000-000000000004',
+        previous_values: null,
+      })
+      expect(insertEvent?.new_values).not.toHaveProperty('tax_id')
+      expect(insertEvent?.new_values).not.toHaveProperty('email')
+      expect(insertEvent?.new_values).not.toHaveProperty('phone')
+      expect(insertEvent?.new_values).not.toHaveProperty('notes')
+      expect(updateEvent).toMatchObject({
+        action: 'update',
+        previous_values: { employee_count: null, trade_name: 'Audited Company' },
+        new_values: { employee_count: 25, trade_name: 'Audited Company Updated' },
+      })
+
+      await expect(
+        database.exec(`
+          insert into public.audit_logs (organization_id, entity_type, action)
+          values ('${organizationAId}', 'companies', 'insert');
+        `),
+      ).rejects.toThrow(/permission denied/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.audit_logs
+        where organization_id = '${organizationAId}' and entity_id = '${companyId}';
+      `)
+      expect(isolated.rows[0]?.count).toBe(0)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const functionPrivilege = await database.query<{ executable: boolean }>(`
+      select has_function_privilege(
+        'authenticated', 'private.capture_audit_log()', 'execute'
+      ) as executable;
+    `)
+    expect(functionPrivilege.rows[0]?.executable).toBe(false)
+  })
+
+  it('manages loss reasons by role without crossing organizations', async () => {
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into public.loss_reasons (organization_id, name, description)
+        values ('${organizationAId}', 'Prazo', 'Prazo de implantação incompatível.');
+      `)
+      const ownReasons = await database.query<{ name: string }>(`
+        select name from public.loss_reasons
+        where organization_id = '${organizationAId}' and name = 'Prazo';
+      `)
+      expect(ownReasons.rows).toEqual([{ name: 'Prazo' }])
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await expect(
+        database.exec(`
+        insert into public.loss_reasons (organization_id, name)
+        values ('${organizationAId}', 'Sem verba');
+      `),
+      ).rejects.toThrow(/row-level security/i)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, userBId)
+    try {
+      const isolated = await database.query<{ count: number }>(`
+        select count(*)::int as count from public.loss_reasons
+        where organization_id = '${organizationAId}';
       `)
       expect(isolated.rows[0]?.count).toBe(0)
     } finally {

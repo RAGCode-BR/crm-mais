@@ -19,7 +19,8 @@ npm run dev
 ```
 
 Preencha em `.env.local` somente a URL pública do projeto e a publishable key. Nunca use a chave
-`service_role` no frontend.
+`service_role` no frontend. O assistente comercial permanece oculto até que os secrets da Edge
+Function estejam configurados e `VITE_AI_ENABLED=true` seja definido no ambiente do frontend.
 
 ## Validação
 

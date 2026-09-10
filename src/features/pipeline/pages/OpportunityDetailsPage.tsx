@@ -2,6 +2,7 @@ import { ArrowRight, History, ListTodo, Pencil } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
+import { AttachmentPanel } from '@/features/attachments/components/AttachmentPanel'
 import { roleCanWrite } from '@/features/crm/crm.constants'
 import { useOrganization } from '@/features/organizations/useOrganization'
 import { opportunityStatusLabel } from '../pipeline.constants'
@@ -109,6 +110,11 @@ export function OpportunityDetailsPage() {
           </div>
         ))}
       </section>
+      <AttachmentPanel
+        membershipId={activeOrganization?.membershipId ?? ''}
+        role={activeOrganization?.role}
+        target={{ entityId: row.id, entityType: 'opportunity', organizationId }}
+      />
       <section className="rounded-xl border border-border bg-card">
         <header className="border-b border-border p-5">
           <h2 className="font-semibold">Histórico de etapas</h2>

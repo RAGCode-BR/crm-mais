@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createActivity, listTimeline, loadTimelineLookups } from './timeline.service'
+import { createActivity, getActivity, listTimeline, loadTimelineLookups } from './timeline.service'
 import type { ActivityInput, TimelineFilters } from './timeline.types'
 
 export const timelineKeys = {
@@ -7,7 +7,16 @@ export const timelineKeys = {
   list: (organizationId: string, filters: TimelineFilters) =>
     ['timeline', organizationId, 'list', filters] as const,
   lookups: (organizationId: string) => ['timeline', organizationId, 'lookups'] as const,
+  detail: (organizationId: string, activityId: string) =>
+    ['timeline', organizationId, 'detail', activityId] as const,
 }
+
+export const useActivity = (organizationId?: string, activityId?: string) =>
+  useQuery({
+    queryKey: timelineKeys.detail(organizationId ?? '', activityId ?? ''),
+    queryFn: () => getActivity(organizationId!, activityId!),
+    enabled: Boolean(organizationId && activityId),
+  })
 
 export const useTimeline = (organizationId: string | undefined, filters: TimelineFilters) =>
   useQuery({

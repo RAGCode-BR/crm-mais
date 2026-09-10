@@ -3,7 +3,7 @@ import { z } from 'zod'
 export const stageSchema = z
   .object({
     id: z.string().optional(),
-    name: z.string().trim().min(1, 'Informe o nome da etapa.'),
+    name: z.string().trim().min(1, 'Informe o nome da etapa.').max(80),
     probability: z.number().int().min(0).max(100),
     isWon: z.boolean(),
     isLost: z.boolean(),
@@ -15,8 +15,8 @@ export const stageSchema = z
 
 export const pipelineSchema = z
   .object({
-    name: z.string().trim().min(1, 'Informe o nome do pipeline.'),
-    description: z.string(),
+    name: z.string().trim().min(1, 'Informe o nome do pipeline.').max(120),
+    description: z.string().trim().max(500),
     isDefault: z.boolean(),
     isActive: z.boolean(),
     stages: z.array(stageSchema).min(1, 'Adicione pelo menos uma etapa.').max(100),
@@ -28,7 +28,7 @@ export const pipelineSchema = z
 
 export const opportunitySchema = z
   .object({
-    title: z.string().trim().min(1, 'Informe o título.'),
+    title: z.string().trim().min(1, 'Informe o título.').max(160),
     companyId: z.string().min(1, 'Selecione a empresa.'),
     contactId: z.string(),
     leadId: z.string(),
@@ -40,9 +40,9 @@ export const opportunitySchema = z
     estimatedValue: z.number().min(0, 'O valor não pode ser negativo.'),
     probability: z.number().int().min(0).max(100),
     expectedCloseDate: z.string(),
-    productService: z.string(),
-    description: z.string(),
-    lossReason: z.string(),
+    productService: z.string().trim().max(160),
+    description: z.string().trim().max(5000),
+    lossReason: z.string().trim().max(250),
     closedAt: z.string(),
   })
   .refine((data) => data.status !== 'lost' || data.lossReason.trim().length > 0, {
