@@ -23,6 +23,7 @@ import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 
 import { Button } from '@/components/ui/Button'
+import { BrandLogo } from '@/components/shared/BrandLogo'
 import { useAuth } from '@/features/auth'
 import { signOut } from '@/features/auth/auth.service'
 import { useOrganization } from '@/features/organizations/useOrganization'
@@ -61,17 +62,15 @@ export function AppShell() {
       <aside
         aria-label="Navegação principal"
         className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card transition-transform lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-border bg-card shadow-xl shadow-slate-950/[0.03] transition-transform lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
         id="main-navigation"
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-5">
           <NavLink className="flex items-center gap-2 font-semibold" to="/dashboard">
-            <span className="grid size-8 place-items-center rounded-lg bg-primary text-xs text-primary-foreground">
-              C+
-            </span>
-            CRM+
+            <BrandLogo compact />
+            <span className="sr-only">CRM+</span>
           </NavLink>
           <Button
             aria-label="Fechar menu"
@@ -115,8 +114,8 @@ export function AppShell() {
                   cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-sm shadow-blue-600/20'
+                      : 'text-muted-foreground hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/30 dark:hover:text-blue-300',
                   )
                 }
                 key={to}

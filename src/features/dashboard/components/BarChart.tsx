@@ -13,17 +13,19 @@ export function BarChart({
   description,
   format = 'number',
   title,
+  tone = 'blue',
 }: {
   data: DashboardPoint[]
   description: string
   format?: 'currency' | 'number'
   title: string
+  tone?: 'amber' | 'blue' | 'cyan' | 'violet'
 }) {
   const max = Math.max(...data.map((point) => point.value), 0)
   const populated = data.filter((point) => point.value > 0)
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm shadow-slate-950/[0.025]">
       <header>
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -44,7 +46,15 @@ export function BarChart({
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary"
+                  className={
+                    tone === 'amber'
+                      ? 'h-full rounded-full bg-amber-500'
+                      : tone === 'cyan'
+                        ? 'h-full rounded-full bg-cyan-500'
+                        : tone === 'violet'
+                          ? 'h-full rounded-full bg-violet-500'
+                          : 'h-full rounded-full bg-primary'
+                  }
                   style={{ width: `${Math.max(3, (point.value / max) * 100)}%` }}
                 />
               </div>

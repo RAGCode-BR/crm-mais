@@ -575,6 +575,62 @@ describe('CRM database migrations', () => {
     }
   })
 
+  it('allows an owner to delete an entire organization and its dependent records', async () => {
+    await authenticateAs(database, userAId)
+
+    try {
+      await database.exec('begin;')
+      await database.exec(`
+        delete from public.organizations
+        where id = '${organizationAId}';
+      `)
+      const organization = await database.query<{ count: number }>(`
+        select count(*)::int as count
+        from public.organizations
+        where id = '${organizationAId}';
+      `)
+      expect(organization.rows[0]?.count).toBe(0)
+    } finally {
+      await database.exec('rollback;')
+      await resetAuthentication(database)
+    }
+  })
+
+  it('allows an owner to rename an organization and blocks viewers', async () => {
+    await authenticateAs(database, userAId)
+    try {
+      await database.exec('begin;')
+      await database.exec(`
+        update public.organizations
+        set name = 'Organization A Renamed'
+        where id = '${organizationAId}';
+      `)
+      const renamed = await database.query<{ name: string }>(`
+        select name from public.organizations where id = '${organizationAId}';
+      `)
+      expect(renamed.rows[0]?.name).toBe('Organization A Renamed')
+    } finally {
+      await database.exec('rollback;')
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await database.exec(`
+        update public.organizations
+        set name = 'Viewer cannot rename'
+        where id = '${organizationAId}';
+      `)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const unchanged = await database.query<{ name: string }>(`
+      select name from public.organizations where id = '${organizationAId}';
+    `)
+    expect(unchanged.rows[0]?.name).toBe('Organization A')
+  })
+
   it('rejects a cross-organization relationship at the database boundary', async () => {
     await expect(
       database.exec(`

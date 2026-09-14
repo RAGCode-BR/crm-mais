@@ -1,5 +1,6 @@
-import { ShieldCheck } from 'lucide-react'
 import type { PropsWithChildren, ReactNode } from 'react'
+
+import { BrandLogo } from '@/components/shared/BrandLogo'
 
 type AuthLayoutProps = PropsWithChildren<{
   title: string
@@ -12,12 +13,7 @@ export function AuthLayout({ children, description, footer, title }: AuthLayoutP
     <main className="grid min-h-screen bg-background text-foreground lg:grid-cols-[1fr_1.05fr]">
       <section className="flex items-center justify-center px-6 py-12 sm:px-10">
         <div className="w-full max-w-sm">
-          <div className="mb-10 flex items-center gap-2 font-semibold tracking-tight">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              C+
-            </span>
-            CRM+
-          </div>
+          <BrandLogo className="mb-10" />
 
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
@@ -34,7 +30,7 @@ export function AuthLayout({ children, description, footer, title }: AuthLayoutP
 
       <aside className="hidden border-l border-border bg-card p-12 lg:flex lg:items-end">
         <div className="max-w-lg">
-          <ShieldCheck className="mb-6 size-8 text-primary" aria-hidden="true" />
+          <BrandLogo className="mb-6 w-48" />
           <p className="text-2xl font-medium leading-9">
             Segurança multiempresa aplicada no banco, do primeiro acesso à operação comercial.
           </p>

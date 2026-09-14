@@ -74,6 +74,21 @@ export async function createOrganization(name: string, slug: string) {
   return id
 }
 
+export async function renameOrganization(organizationId: string, name: string) {
+  const { error } = await requireSupabase()
+    .from('organizations')
+    .update({ name })
+    .eq('id', organizationId)
+
+  if (error) throw error
+}
+
+export async function deleteOrganization(organizationId: string) {
+  const { error } = await requireSupabase().from('organizations').delete().eq('id', organizationId)
+
+  if (error) throw error
+}
+
 export function getOrganizationErrorMessage(error: unknown) {
   if (!(error instanceof Error)) return 'Não foi possível concluir a solicitação.'
 

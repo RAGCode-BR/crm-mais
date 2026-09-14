@@ -14,6 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "preview": "vite preview",
+    "deploy:cloudflare:dry-run": "npm run build && wrangler deploy --dry-run",
+    "deploy:cloudflare": "npm run build && wrangler deploy",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "validate": "npm run typecheck && npm run lint && npm run test && npm run build"
@@ -55,6 +58,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.69.0",
     "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "wrangler": "^4.131.2"
   }
 }

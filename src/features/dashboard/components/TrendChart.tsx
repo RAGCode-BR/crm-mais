@@ -24,11 +24,13 @@ export function TrendChart({
   description,
   format = 'number',
   title,
+  tone = 'blue',
 }: {
   data: DashboardPoint[]
   description: string
   format?: 'currency' | 'number'
   title: string
+  tone?: 'blue' | 'green'
 }) {
   const hasValues = data.some((point) => point.value > 0)
   const middle = data[Math.floor(data.length / 2)]
@@ -43,7 +45,7 @@ export function TrendChart({
       : new Intl.NumberFormat('pt-BR').format(total)
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm shadow-slate-950/[0.025]">
       <header>
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
@@ -66,7 +68,7 @@ export function TrendChart({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="4"
-              className="text-primary"
+              className={tone === 'green' ? 'text-emerald-500' : 'text-primary'}
             />
           </svg>
           <div className="flex justify-between text-xs text-muted-foreground">

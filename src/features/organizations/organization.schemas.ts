@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
+export const organizationNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Informe o nome da organização.')
+  .max(120, 'Use no máximo 120 caracteres.')
+
 export const organizationSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, 'Informe o nome da organização.')
-    .max(120, 'Use no máximo 120 caracteres.'),
+  name: organizationNameSchema,
   slug: z
     .string()
     .trim()
