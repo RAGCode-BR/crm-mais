@@ -29,12 +29,14 @@ const statusLabels: Record<MembershipStatus, string> = {
 
 function MemberRow({
   canAdmin,
+  canPromoteToOwner,
   member,
   onSave,
   pending,
   teams,
 }: {
   canAdmin: boolean
+  canPromoteToOwner: boolean
   member: MemberView
   onSave: (
     id: string,
@@ -61,11 +63,13 @@ function MemberRow({
         onChange={(event) => setRole(event.target.value as OrganizationRole)}
         value={role}
       >
-        {Object.entries(roleLabels).map(([value, label]) => (
-          <option key={value} value={value}>
-            {label}
-          </option>
-        ))}
+        {Object.entries(roleLabels)
+          .filter(([value]) => canPromoteToOwner || value !== 'owner')
+          .map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
       </Select>
       <Select
         aria-label={`Equipe de ${member.profile.full_name}`}
@@ -110,6 +114,7 @@ export function MembersSettingsPage() {
   const { activeOrganization } = useOrganization()
   const organizationId = activeOrganization?.organizationId ?? ''
   const canAdmin = activeOrganization?.role === 'owner' || activeOrganization?.role === 'admin'
+  const canPromoteToOwner = activeOrganization?.role === 'owner'
   const members = useMembers(organizationId)
   const teams = useCatalog('teams', organizationId)
   const mutations = useMemberMutations(organizationId)
@@ -146,7 +151,7 @@ export function MembersSettingsPage() {
             value={role}
           >
             {Object.entries(roleLabels)
-              .filter(([value]) => activeOrganization.role === 'owner' || value !== 'owner')
+              .filter(([value]) => canPromoteToOwner || value !== 'owner')
               .map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -181,6 +186,7 @@ export function MembersSettingsPage() {
           {members.data?.map((member) => (
             <MemberRow
               canAdmin={canAdmin}
+              canPromoteToOwner={canPromoteToOwner}
               key={member.id}
               member={member}
               onSave={(id, input) => mutations.update.mutate({ id, input })}

@@ -9,12 +9,28 @@ function storageKey(userId: string) {
   return `crm.active-organization.${userId}`
 }
 
+function readStoredOrganizationId(userId: string): string | null {
+  try {
+    return localStorage.getItem(storageKey(userId))
+  } catch {
+    return null
+  }
+}
+
+function writeStoredOrganizationId(userId: string, organizationId: string) {
+  try {
+    localStorage.setItem(storageKey(userId), organizationId)
+  } catch {
+    // Ignora falhas de armazenamento (navegação privada, políticas restritivas, etc.).
+  }
+}
+
 export function OrganizationProvider({ children }: PropsWithChildren) {
   const { user } = useAuth()
   const [selectedOrganizations, setSelectedOrganizations] = useState<Record<string, string>>({})
   const query = useOrganizations(user?.id)
   const organizations = useMemo(() => query.data ?? [], [query.data])
-  const storedOrganizationId = user ? localStorage.getItem(storageKey(user.id)) : null
+  const storedOrganizationId = user ? readStoredOrganizationId(user.id) : null
   const selectedOrganizationId = user
     ? (selectedOrganizations[user.id] ?? storedOrganizationId)
     : null
@@ -33,7 +49,7 @@ export function OrganizationProvider({ children }: PropsWithChildren) {
       setActiveOrganization: (organizationId) => {
         if (!user) return
 
-        localStorage.setItem(storageKey(user.id), organizationId)
+        writeStoredOrganizationId(user.id, organizationId)
         setSelectedOrganizations((current) => ({
           ...current,
           [user.id]: organizationId,

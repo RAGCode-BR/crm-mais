@@ -3,12 +3,14 @@ import { Navigate, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../useAuth'
 import { AuthLoading } from './AuthLoading'
+import { AuthUnconfigured } from './AuthUnconfigured'
 
 export function ProtectedRoute({ children }: PropsWithChildren) {
   const { status } = useAuth()
   const location = useLocation()
 
   if (status === 'loading') return <AuthLoading />
+  if (status === 'unconfigured') return <AuthUnconfigured />
 
   if (status !== 'authenticated') {
     return <Navigate replace state={{ from: location.pathname }} to="/login" />
