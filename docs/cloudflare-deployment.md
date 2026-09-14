@@ -1,9 +1,9 @@
 # Deploy no Cloudflare
 
-O CRM+ é uma aplicação React/Vite de página única (SPA). Ela pode ser publicada no Cloudflare
-Pages ou diretamente com Cloudflare Workers. Os arquivos `public/_redirects` e
-`public/_headers` são incluídos no build para preservar o acesso direto às rotas do CRM e aplicar
-cabeçalhos básicos de segurança.
+O CRM+ é uma aplicação React/Vite de página única (SPA), preparada para publicação com Cloudflare
+Workers. O `wrangler.jsonc` usa `assets.not_found_handling` como
+`single-page-application`, preservando o acesso direto às rotas do CRM. O arquivo
+`public/_headers` é incluído no build para aplicar cabeçalhos básicos de segurança.
 
 ## Variáveis de ambiente
 
@@ -18,14 +18,6 @@ Configure estas variáveis **no ambiente de produção do Cloudflare antes do bu
 As variáveis prefixadas com `VITE_` ficam embutidas no JavaScript do navegador. Nunca informe
 `service_role`, `OPENAI_API_KEY` ou qualquer outro segredo nessa configuração. Os segredos do
 assistente comercial permanecem no Supabase Edge Functions.
-
-## Cloudflare Pages
-
-1. Conecte este repositório ao Cloudflare Pages.
-2. Use `npm ci` como comando de instalação e `npm run build` como comando de build.
-3. Defina `dist` como diretório de saída.
-4. Cadastre as variáveis acima para Production (e Preview, se necessário).
-5. Publique. O arquivo `_redirects` faz com que rotas como `/dashboard` e `/login` carreguem a SPA.
 
 ## Cloudflare Workers
 
@@ -42,7 +34,9 @@ npm run deploy:cloudflare
 ```
 
 O arquivo `wrangler.jsonc` usa `dist` como diretório de assets e aplica o fallback de SPA para
-rotas que não correspondem a arquivos estáticos.
+rotas que não correspondem a arquivos estáticos. Não use um arquivo `_redirects` com a regra
+`/* /index.html 200`: em Workers, ela entra em conflito com o fallback nativo e pode gerar um
+loop de redirecionamento.
 
 ## Ajuste obrigatório no Supabase Auth
 

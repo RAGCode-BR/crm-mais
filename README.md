@@ -113,22 +113,9 @@ npm run validate
 
 ## Deploy no Cloudflare
 
-O projeto já está pronto para ser hospedado como SPA. O fallback de rotas está em
-`public/_redirects`, os cabeçalhos de segurança em `public/_headers` e a configuração de Workers
-em [wrangler.jsonc](wrangler.jsonc).
-
-### Cloudflare Pages
-
-Conecte o repositório ao Cloudflare Pages e informe:
-
-| Campo                 | Valor           |
-| --------------------- | --------------- |
-| Comando de instalação | `npm ci`        |
-| Comando de build      | `npm run build` |
-| Diretório de saída    | `dist`          |
-
-Cadastre, antes do build, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e
-`VITE_AI_ENABLED` nas configurações de Production e, se usado, Preview.
+O projeto está pronto para ser hospedado como SPA no Cloudflare Workers. O fallback de rotas é
+configurado de forma nativa em [wrangler.jsonc](wrangler.jsonc), e os cabeçalhos de segurança
+estão em `public/_headers`.
 
 ### Cloudflare Workers
 
@@ -173,6 +160,3 @@ docs/             # Arquitetura, segurança e guias operacionais
 - [Modelo de dados](docs/database-schema.md)
 - [Guia de deploy no Cloudflare](docs/cloudflare-deployment.md)
 - [Auditoria final de qualidade e segurança](docs/final-quality-security-audit.md)
-
-Cada página deve possuir seu próprio arquivo `*Page.tsx`. Arquivos `index.ts` são usados somente
-para exports e nunca como contêiner de múltiplas páginas.
