@@ -14,6 +14,35 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const modes = new Set<AiMode>(['company_summary', 'commercial_assistant', 'next_best_action'])
 const safeActionPath = /^\/(?:empresas|leads|oportunidades|tarefas)(?:\/|$)/
 
+type CommercialGuidance = {
+  title: string
+  answer: string
+  evidence: string[]
+  suggestedActions: Array<{ label: string; path: string; reason: string }>
+}
+
+function isCommercialGuidance(value: unknown): value is CommercialGuidance {
+  if (!value || typeof value !== 'object') return false
+  const guidance = value as Record<string, unknown>
+  return (
+    typeof guidance.title === 'string' &&
+    guidance.title.trim().length > 0 &&
+    typeof guidance.answer === 'string' &&
+    guidance.answer.trim().length > 0 &&
+    Array.isArray(guidance.evidence) &&
+    guidance.evidence.every((item) => typeof item === 'string') &&
+    Array.isArray(guidance.suggestedActions) &&
+    guidance.suggestedActions.every(
+      (action) =>
+        action &&
+        typeof action === 'object' &&
+        typeof (action as Record<string, unknown>).label === 'string' &&
+        typeof (action as Record<string, unknown>).path === 'string' &&
+        typeof (action as Record<string, unknown>).reason === 'string',
+    )
+  )
+}
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -72,12 +101,9 @@ Deno.serve(async (request: Request) => {
       schema: responseSchema,
       safetyIdentifier: await safetyIdentifier(authData.user.id),
     })
-    const guidance = result.data as {
-      title: string
-      answer: string
-      evidence: string[]
-      suggestedActions: Array<{ label: string; path: string; reason: string }>
-    }
+    if (!isCommercialGuidance(result.data))
+      throw new Error('O provedor retornou uma resposta fora do formato esperado.')
+    const guidance = result.data
     return json({
       ...guidance,
       suggestedActions: (guidance.suggestedActions ?? [])

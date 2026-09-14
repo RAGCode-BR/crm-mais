@@ -1,3 +1,4 @@
+import { GeminiProvider } from './gemini-provider.ts'
 import { OpenAiProvider } from './openai-provider.ts'
 import type { AiProvider } from './types.ts'
 
@@ -12,6 +13,16 @@ export function createAiProvider(): AiProvider {
       )
     }
     return new OpenAiProvider(apiKey, model)
+  }
+  if (provider === 'gemini') {
+    const apiKey = Deno.env.get('GEMINI_API_KEY')
+    const model = Deno.env.get('GEMINI_MODEL')
+    if (!apiKey || !model) {
+      throw new Error(
+        'A inteligência comercial ainda não foi configurada. Defina GEMINI_API_KEY e GEMINI_MODEL nos secrets do Supabase.',
+      )
+    }
+    return new GeminiProvider(apiKey, model)
   }
   throw new Error(`Provedor de IA não suportado: ${provider}.`)
 }
