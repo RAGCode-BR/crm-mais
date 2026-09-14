@@ -1,5 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ArrowRight, Eye, EyeOff, Lock, Mail, MailCheck, ShieldCheck, UserRound } from 'lucide-react'
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  MailCheck,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { Link, useNavigate } from 'react-router-dom'
@@ -90,7 +99,10 @@ export function RegisterPage() {
                 {submitError ? <AuthNotice message={submitError} /> : null}
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="fullName">
+                  <label
+                    className="mb-2 block text-sm font-medium text-slate-700"
+                    htmlFor="fullName"
+                  >
                     Nome completo
                   </label>
                   <div className="relative">
@@ -99,7 +111,9 @@ export function RegisterPage() {
                       className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
                     />
                     <Input
-                      aria-describedby={form.formState.errors.fullName ? 'fullName-error' : undefined}
+                      aria-describedby={
+                        form.formState.errors.fullName ? 'fullName-error' : undefined
+                      }
                       aria-invalid={Boolean(form.formState.errors.fullName)}
                       autoComplete="name"
                       className="h-11 border-slate-200 bg-white pl-10 shadow-sm shadow-slate-950/[0.02] focus-visible:ring-blue-500"
@@ -143,7 +157,10 @@ export function RegisterPage() {
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="password">
+                  <label
+                    className="mb-2 block text-sm font-medium text-slate-700"
+                    htmlFor="password"
+                  >
                     Senha
                   </label>
                   <div className="relative">
@@ -169,7 +186,11 @@ export function RegisterPage() {
                       onClick={() => setIsPasswordVisible((visible) => !visible)}
                       type="button"
                     >
-                      {isPasswordVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      {isPasswordVisible ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
                     </button>
                   </div>
                   {form.formState.errors.password ? (
@@ -213,11 +234,19 @@ export function RegisterPage() {
                       onClick={() => setIsConfirmVisible((visible) => !visible)}
                       type="button"
                     >
-                      {isConfirmVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      {isConfirmVisible ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
                     </button>
                   </div>
                   {form.formState.errors.confirmPassword ? (
-                    <p className="mt-2 text-sm text-red-600" id="confirmPassword-error" role="alert">
+                    <p
+                      className="mt-2 text-sm text-red-600"
+                      id="confirmPassword-error"
+                      role="alert"
+                    >
                       {form.formState.errors.confirmPassword.message}
                     </p>
                   ) : null}

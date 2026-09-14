@@ -20,5 +20,7 @@ export function BrandLogo({ className, compact = false }: BrandLogoProps) {
     )
   }
 
-  return <img alt="CRM+" className={cn('h-auto w-36 object-contain sm:w-40', className)} src={logo} />
+  return (
+    <img alt="CRM+" className={cn('h-auto w-36 object-contain sm:w-40', className)} src={logo} />
+  )
 }

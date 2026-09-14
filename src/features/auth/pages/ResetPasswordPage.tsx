@@ -95,7 +95,10 @@ export function ResetPasswordPage() {
                 {submitError ? <AuthNotice message={submitError} /> : null}
 
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="password">
+                  <label
+                    className="mb-2 block text-sm font-medium text-slate-700"
+                    htmlFor="password"
+                  >
                     Nova senha
                   </label>
                   <div className="relative">
@@ -104,7 +107,9 @@ export function ResetPasswordPage() {
                       className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
                     />
                     <Input
-                      aria-describedby={form.formState.errors.password ? 'password-error' : undefined}
+                      aria-describedby={
+                        form.formState.errors.password ? 'password-error' : undefined
+                      }
                       aria-invalid={Boolean(form.formState.errors.password)}
                       autoComplete="new-password"
                       className="h-11 border-slate-200 bg-white px-10 shadow-sm shadow-slate-950/[0.02] focus-visible:ring-blue-500"
@@ -119,7 +124,11 @@ export function ResetPasswordPage() {
                       onClick={() => setIsPasswordVisible((visible) => !visible)}
                       type="button"
                     >
-                      {isPasswordVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      {isPasswordVisible ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
                     </button>
                   </div>
                   {form.formState.errors.password ? (
@@ -159,11 +168,19 @@ export function ResetPasswordPage() {
                       onClick={() => setIsConfirmVisible((visible) => !visible)}
                       type="button"
                     >
-                      {isConfirmVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                      {isConfirmVisible ? (
+                        <EyeOff className="size-4" />
+                      ) : (
+                        <Eye className="size-4" />
+                      )}
                     </button>
                   </div>
                   {form.formState.errors.confirmPassword ? (
-                    <p className="mt-2 text-sm text-red-600" id="confirmPassword-error" role="alert">
+                    <p
+                      className="mt-2 text-sm text-red-600"
+                      id="confirmPassword-error"
+                      role="alert"
+                    >
                       {form.formState.errors.confirmPassword.message}
                     </p>
                   ) : null}
