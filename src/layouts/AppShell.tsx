@@ -68,9 +68,8 @@ export function AppShell() {
         id="main-navigation"
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-5">
-          <NavLink className="flex items-center gap-2 font-semibold" to="/dashboard">
+          <NavLink className="flex items-center font-semibold" to="/dashboard">
             <BrandLogo compact />
-            <span className="sr-only">CRM+</span>
           </NavLink>
           <Button
             aria-label="Fechar menu"
