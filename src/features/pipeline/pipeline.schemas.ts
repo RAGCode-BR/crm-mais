@@ -53,3 +53,29 @@ export const opportunitySchema = z
     message: 'Selecione a empresa do contato.',
     path: ['companyId'],
   })
+
+export const quickOpportunitySchema = z.object({
+  companyName: z.string().trim().min(1, 'Informe o nome da empresa.').max(160),
+  responsibleName: z.string().trim().max(160),
+  contactPhone: z
+    .string()
+    .trim()
+    .refine((value) => value.replace(/\D/g, '').length <= 30, 'Use no máximo 30 dígitos.'),
+  estimatedValue: z.number('Informe um valor.').min(0, 'O valor não pode ser negativo.'),
+  probability: z
+    .number('Informe a probabilidade.')
+    .int('Use um número inteiro.')
+    .min(0, 'Use um valor entre 0 e 100.')
+    .max(100, 'Use um valor entre 0 e 100.'),
+  productService: z.string().trim().max(160),
+  description: z.string().trim().max(5000),
+})
+
+export const responsibleSchema = z.object({
+  name: z.string().trim().min(1, 'Informe o nome do responsável.').max(160),
+  jobTitle: z.string().trim().max(120),
+  phone: z
+    .string()
+    .trim()
+    .refine((value) => value.replace(/\D/g, '').length <= 30, 'Use no máximo 30 dígitos.'),
+})

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { opportunitySchema, pipelineSchema } from './pipeline.schemas'
+import { opportunitySchema, pipelineSchema, quickOpportunitySchema } from './pipeline.schemas'
 
 describe('pipeline validation', () => {
   it('accepts a configured pipeline', () => {
@@ -56,5 +56,25 @@ describe('pipeline validation', () => {
     }
     expect(opportunitySchema.safeParse(base).success).toBe(false)
     expect(opportunitySchema.safeParse({ ...base, lossReason: 'Preço' }).success).toBe(true)
+  })
+  it('requires a company name and bounded values in a quick opportunity', () => {
+    const valid = {
+      companyName: 'Acme',
+      responsibleName: '',
+      contactPhone: '',
+      estimatedValue: 1000,
+      probability: 20,
+      productService: '',
+      description: '',
+    }
+    expect(quickOpportunitySchema.safeParse(valid).success).toBe(true)
+    expect(quickOpportunitySchema.safeParse({ ...valid, companyName: '   ' }).success).toBe(false)
+    expect(quickOpportunitySchema.safeParse({ ...valid, probability: 120 }).success).toBe(false)
+    expect(
+      quickOpportunitySchema.safeParse({ ...valid, contactPhone: '1'.repeat(31) }).success,
+    ).toBe(false)
+    expect(quickOpportunitySchema.safeParse({ ...valid, estimatedValue: Number.NaN }).success).toBe(
+      false,
+    )
   })
 })

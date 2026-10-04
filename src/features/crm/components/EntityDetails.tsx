@@ -1,14 +1,15 @@
-import { Archive, History, ListTodo, Pencil } from 'lucide-react'
+import { Archive, History, ListTodo, Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
 import { Button } from '@/components/ui/Button'
 import { AttachmentPanel } from '@/features/attachments/components/AttachmentPanel'
 import { useOrganization } from '@/features/organizations/useOrganization'
 import type { EntityKind } from '../crm.types'
-import { roleCanWrite, statusLabel, temperatureLabel } from '../crm.constants'
-import { useArchiveRecord, useCrmLookups, useCrmRecord } from '../crm.hooks'
+import { roleCanManage, roleCanWrite, statusLabel, temperatureLabel } from '../crm.constants'
+import { useArchiveRecord, useCrmLookups, useCrmRecord, useDeleteRecord } from '../crm.hooks'
 
 const meta = {
   companies: { title: 'Empresa', path: '/empresas', edit: 'Editar empresa' },
@@ -22,11 +23,13 @@ function display(value: unknown) {
 export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }) {
   const { activeOrganization } = useOrganization()
   const [confirming, setConfirming] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const navigate = useNavigate()
   const organizationId = activeOrganization?.organizationId ?? ''
   const query = useCrmRecord(entity, organizationId, id)
   const lookups = useCrmLookups(organizationId)
   const archive = useArchiveRecord(entity, organizationId)
+  const removeLead = useDeleteRecord('leads', organizationId)
   const current = meta[entity]
   if (query.isLoading || lookups.isLoading)
     return <StatePanel kind="loading">Carregando detalhes...</StatePanel>
@@ -96,6 +99,7 @@ export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }
             ['Observações', row.notes],
           ]
   const canWrite = roleCanWrite(activeOrganization?.role)
+  const canDelete = entity === 'leads' && roleCanManage(activeOrganization?.role)
   const taskContext = new URLSearchParams()
   taskContext.set(
     entity === 'companies' ? 'empresa' : entity === 'contacts' ? 'contato' : 'lead',
@@ -195,8 +199,44 @@ export function EntityDetails({ entity, id }: { entity: EntityKind; id: string }
           {archive.error ? (
             <p className="mt-3 text-sm text-red-600">{archive.error.message}</p>
           ) : null}
+          {canDelete ? (
+            <div className="mt-5 border-t border-red-200 pt-5 dark:border-red-900">
+              <h2 className="font-medium">Excluir lead</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Remove o lead de vez, junto com oportunidades, atividades, tarefas, notas, tags e
+                anexos ligados a ele. A empresa e o contato não são afetados.
+              </p>
+              <Button
+                className="mt-4 border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
+                onClick={() => setConfirmingDelete(true)}
+                variant="outline"
+              >
+                <Trash2 className="size-4" />
+                Excluir lead
+              </Button>
+              {removeLead.error ? (
+                <p className="mt-3 text-sm text-red-600" role="alert">
+                  {removeLead.error.message}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
+      <ConfirmDialog
+        confirmLabel="Excluir lead"
+        description={`"${title}" e tudo o que está ligado a ele serão apagados. Essa ação não pode ser desfeita.`}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={() =>
+          void removeLead
+            .mutateAsync(id)
+            .then(() => navigate(current.path))
+            .catch(() => setConfirmingDelete(false))
+        }
+        open={confirmingDelete}
+        pending={removeLead.isPending}
+        title="Excluir lead permanentemente?"
+      />
     </div>
   )
 }

@@ -42,3 +42,19 @@ export type KanbanFilters = {
   ownerId: string
   status: string
 }
+
+export type QuickOpportunityInput = {
+  companyName: string
+  responsibleName: string
+  contactPhone: string
+  estimatedValue: number
+  probability: number
+  productService: string
+  description: string
+}
+
+export type ResponsibleInput = {
+  name: string
+  jobTitle: string
+  phone: string
+}

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { crmKeys } from '@/features/crm/crm.hooks'
 import type { Opportunity } from '@/types/database/pipeline'
 import {
+  createQuickOpportunity,
   getOpportunity,
   getOpportunityHistory,
   getPipeline,
@@ -8,10 +10,17 @@ import {
   listPipelines,
   loadPipelineLookups,
   moveOpportunity,
+  registerOpportunityResponsible,
   saveOpportunity,
   savePipeline,
 } from './pipeline.service'
-import type { KanbanFilters, OpportunityInput, PipelineInput } from './pipeline.types'
+import type {
+  KanbanFilters,
+  OpportunityInput,
+  PipelineInput,
+  QuickOpportunityInput,
+  ResponsibleInput,
+} from './pipeline.types'
 
 export const pipelineKeys = {
   all: (organizationId: string) => ['pipeline', organizationId] as const,
@@ -82,6 +91,30 @@ export function useSaveOpportunity(organizationId: string, id?: string) {
   return useMutation({
     mutationFn: (input: OpportunityInput) => saveOpportunity(organizationId, input, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: pipelineKeys.all(organizationId) }),
+  })
+}
+
+export function useCreateQuickOpportunity(organizationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: QuickOpportunityInput) => createQuickOpportunity(organizationId, input),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: pipelineKeys.all(organizationId) }),
+        queryClient.invalidateQueries({ queryKey: crmKeys.all(organizationId) }),
+      ]),
+  })
+}
+
+export function useRegisterResponsible(organizationId: string, opportunityId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: ResponsibleInput) => registerOpportunityResponsible(opportunityId, input),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: pipelineKeys.all(organizationId) }),
+        queryClient.invalidateQueries({ queryKey: crmKeys.all(organizationId) }),
+      ]),
   })
 }
 

@@ -1,6 +1,8 @@
-import { ArrowUpDown, Plus } from 'lucide-react'
+import { ArrowUpDown, Plus, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { PageHeader } from '@/components/shared/PageHeader'
 import { Pagination } from '@/components/shared/Pagination'
 import { StatePanel } from '@/components/shared/StatePanel'
@@ -13,12 +15,13 @@ import {
   PAGE_SIZE,
   companyStatusOptions,
   leadStatusOptions,
+  roleCanManage,
   roleCanWrite,
   statusLabel,
   temperatureLabel,
   temperatureOptions,
 } from '../crm.constants'
-import { useCrmList, useCrmLookups } from '../crm.hooks'
+import { useCrmList, useCrmLookups, useDeleteRecord } from '../crm.hooks'
 import type { EntityKind, ListFilters } from '../crm.types'
 
 type Props = {
@@ -138,6 +141,8 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
   const { filters, update } = useFilters(entity)
   const query = useCrmList(entity, activeOrganization?.organizationId, filters)
   const lookups = useCrmLookups(activeOrganization?.organizationId)
+  const removeCompany = useDeleteRecord('companies', activeOrganization?.organizationId ?? '')
+  const [companyToDelete, setCompanyToDelete] = useState<{ id: string; name: string } | null>(null)
   const config = entityConfig[entity]
   const rows = (query.data?.rows ?? []) as unknown as Array<Record<string, unknown>>
   const companyNames = new Map(
@@ -145,6 +150,7 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
   )
   if (!activeOrganization)
     return <StatePanel>Crie ou selecione uma organização para começar.</StatePanel>
+  const canDelete = entity === 'companies' && roleCanManage(activeOrganization.role)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -294,6 +300,11 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
                       {header}
                     </th>
                   ))}
+                  {canDelete ? (
+                    <th className="w-14 px-4 py-3">
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -313,6 +324,24 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
                         )}
                       </td>
                     ))}
+                    {canDelete ? (
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          aria-label={`Excluir ${String(row.trade_name)}`}
+                          className="inline-grid size-9 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+                          onClick={() =>
+                            setCompanyToDelete({
+                              id: String(row.id),
+                              name: String(row.trade_name),
+                            })
+                          }
+                          title="Excluir empresa"
+                          type="button"
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>
@@ -326,6 +355,21 @@ export function CrmListPage({ createLabel, createPath, description, entity, titl
           pageSize={filters.pageSize}
         />
       </section>
+      {removeCompany.error ? (
+        <StatePanel kind="error">{removeCompany.error.message}</StatePanel>
+      ) : null}
+      <ConfirmDialog
+        confirmLabel="Excluir empresa"
+        description={`"${companyToDelete?.name ?? ''}" será apagada junto com todos os contatos, leads, oportunidades, atividades, tarefas, notas e anexos ligados a ela. Essa ação não pode ser desfeita.`}
+        onCancel={() => setCompanyToDelete(null)}
+        onConfirm={() => {
+          if (!companyToDelete) return
+          void removeCompany.mutateAsync(companyToDelete.id).finally(() => setCompanyToDelete(null))
+        }}
+        open={companyToDelete !== null}
+        pending={removeCompany.isPending}
+        title="Excluir empresa permanentemente?"
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   archiveRecord,
+  deleteRecord,
   getCompany,
   getContact,
   getLead,
@@ -96,6 +97,21 @@ export function useSaveLead(organizationId: string, id?: string) {
   return useMutation({
     mutationFn: (input: LeadInput) => saveLead(organizationId, input, id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: crmKeys.all(organizationId) }),
+  })
+}
+
+export function useDeleteRecord(entity: 'companies' | 'leads', organizationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => deleteRecord(entity, id),
+    onSuccess: (_, id) => {
+      const deletedKey = crmKeys.detail(organizationId, entity, id).join('/')
+      // Deletion cascades into opportunities, tasks, timeline, notifications and reports.
+      // The deleted record's own query is skipped so its page does not refetch a 404.
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey.join('/') !== deletedKey,
+      })
+    },
   })
 }
 

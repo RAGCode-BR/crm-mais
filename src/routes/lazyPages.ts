@@ -101,6 +101,12 @@ export const OpportunitiesPage = lazy(() =>
   })),
 )
 
+export const QuickOpportunityPage = lazy(() =>
+  import('@/features/pipeline/pages/QuickOpportunityPage').then((module) => ({
+    default: module.QuickOpportunityPage,
+  })),
+)
+
 export const NewOpportunityPage = lazy(() =>
   import('@/features/pipeline/pages/NewOpportunityPage').then((module) => ({
     default: module.NewOpportunityPage,
@@ -200,48 +206,6 @@ export const TaskDetailsPage = lazy(() =>
 export const EditTaskPage = lazy(() =>
   import('@/features/tasks/pages/EditTaskPage').then((module) => ({
     default: module.EditTaskPage,
-  })),
-)
-
-export const ProspectingListsPage = lazy(() =>
-  import('@/features/prospecting/pages/ProspectingListsPage').then((module) => ({
-    default: module.ProspectingListsPage,
-  })),
-)
-
-export const NewProspectingListPage = lazy(() =>
-  import('@/features/prospecting/pages/NewProspectingListPage').then((module) => ({
-    default: module.NewProspectingListPage,
-  })),
-)
-
-export const ProspectingListPage = lazy(() =>
-  import('@/features/prospecting/pages/ProspectingListPage').then((module) => ({
-    default: module.ProspectingListPage,
-  })),
-)
-
-export const CadencesPage = lazy(() =>
-  import('@/features/cadences/pages/CadencesPage').then((module) => ({
-    default: module.CadencesPage,
-  })),
-)
-
-export const NewCadencePage = lazy(() =>
-  import('@/features/cadences/pages/NewCadencePage').then((module) => ({
-    default: module.NewCadencePage,
-  })),
-)
-
-export const CadenceDetailsPage = lazy(() =>
-  import('@/features/cadences/pages/CadenceDetailsPage').then((module) => ({
-    default: module.CadenceDetailsPage,
-  })),
-)
-
-export const EditCadencePage = lazy(() =>
-  import('@/features/cadences/pages/EditCadencePage').then((module) => ({
-    default: module.EditCadencePage,
   })),
 )
 

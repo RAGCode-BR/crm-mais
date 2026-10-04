@@ -14,6 +14,8 @@ import type {
   OpportunityInput,
   PipelineInput,
   PipelineWithStages,
+  QuickOpportunityInput,
+  ResponsibleInput,
 } from './pipeline.types'
 
 function client() {
@@ -179,6 +181,35 @@ export async function saveOpportunity(
     .single()
   if (error) throw error
   return data as unknown as Opportunity
+}
+
+export async function createQuickOpportunity(organizationId: string, input: QuickOpportunityInput) {
+  const { data, error } = await client().rpc('create_quick_opportunity', {
+    target_organization_id: organizationId,
+    company_name: input.companyName,
+    responsible_name: input.responsibleName,
+    contact_phone: input.contactPhone,
+    estimated_value: input.estimatedValue,
+    probability: input.probability,
+    product_service: input.productService,
+    description: input.description,
+  })
+  if (error) throw error
+  return data
+}
+
+export async function registerOpportunityResponsible(
+  opportunityId: string,
+  input: ResponsibleInput,
+) {
+  const { data, error } = await client().rpc('register_opportunity_responsible', {
+    target_opportunity_id: opportunityId,
+    responsible_name: input.name,
+    job_title: input.jobTitle,
+    contact_phone: input.phone,
+  })
+  if (error) throw error
+  return data
 }
 
 export async function moveOpportunity(

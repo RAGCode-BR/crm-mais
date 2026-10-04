@@ -4,7 +4,9 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { StatePanel } from '@/components/shared/StatePanel'
 import { AttachmentPanel } from '@/features/attachments/components/AttachmentPanel'
 import { roleCanWrite } from '@/features/crm/crm.constants'
+import { useCrmRecord } from '@/features/crm/crm.hooks'
 import { useOrganization } from '@/features/organizations/useOrganization'
+import { ResponsibleRegistrationPanel } from '../components/ResponsibleRegistrationPanel'
 import { opportunityStatusLabel } from '../pipeline.constants'
 import { useOpportunity, useOpportunityHistory, usePipelineLookups } from '../pipeline.hooks'
 
@@ -19,6 +21,7 @@ export function OpportunityDetailsPage() {
   const query = useOpportunity(organizationId, opportunityId)
   const history = useOpportunityHistory(organizationId, opportunityId)
   const lookups = usePipelineLookups(organizationId)
+  const company = useCrmRecord('companies', organizationId, query.data?.company_id)
   if (!opportunityId) return <Navigate replace to="/oportunidades" />
   if (query.isLoading || lookups.isLoading)
     return <StatePanel kind="loading">Carregando oportunidade...</StatePanel>
@@ -39,9 +42,9 @@ export function OpportunityDetailsPage() {
   }
   const fields: Array<[string, unknown]> = [
     ['Empresa', maps.companies.get(row.company_id)],
-    ['Contato', maps.contacts.get(row.contact_id ?? '')],
+    ['Responsável no estabelecimento', maps.contacts.get(row.contact_id ?? '')],
     ['Lead', maps.leads.get(row.lead_id ?? '')],
-    ['Responsável', maps.members.get(row.owner_member_id ?? '')],
+    ['Vendedor responsável', maps.members.get(row.owner_member_id ?? '')],
     ['Pipeline', pipeline?.name],
     ['Etapa', stage?.name],
     ['Estado', opportunityStatusLabel(row.status)],
@@ -59,6 +62,7 @@ export function OpportunityDetailsPage() {
     ['Data de fechamento', row.closed_at ? new Date(row.closed_at).toLocaleString('pt-BR') : null],
     ['Descrição', row.description],
   ]
+  const canWrite = roleCanWrite(activeOrganization?.role)
   return (
     <div className="space-y-6">
       <PageHeader
@@ -77,7 +81,7 @@ export function OpportunityDetailsPage() {
               <History className="size-4" />
               Timeline completa
             </Link>
-            {roleCanWrite(activeOrganization?.role) ? (
+            {canWrite ? (
               <>
                 <Link
                   className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
@@ -110,6 +114,14 @@ export function OpportunityDetailsPage() {
           </div>
         ))}
       </section>
+      {canWrite && !row.contact_id && !company.isLoading ? (
+        <ResponsibleRegistrationPanel
+          companyName={maps.companies.get(row.company_id) ?? 'a empresa'}
+          companyPhone={company.data?.phone ?? ''}
+          opportunityId={row.id}
+          organizationId={organizationId}
+        />
+      ) : null}
       <AttachmentPanel
         membershipId={activeOrganization?.membershipId ?? ''}
         role={activeOrganization?.role}

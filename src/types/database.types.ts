@@ -205,6 +205,36 @@ export type Database = {
         Args: { target_enrollment_id: string; target_status: string }
         Returns: CadenceEnrollment
       }
+      create_quick_opportunity: {
+        Args: {
+          target_organization_id: string
+          company_name: string
+          responsible_name: string
+          contact_phone: string
+          estimated_value: number
+          probability: number
+          product_service: string
+          description: string
+        }
+        Returns: string
+      }
+      delete_company: {
+        Args: { target_company_id: string }
+        Returns: Array<{ storage_bucket: string; storage_path: string }>
+      }
+      delete_lead: {
+        Args: { target_lead_id: string }
+        Returns: Array<{ storage_bucket: string; storage_path: string }>
+      }
+      register_opportunity_responsible: {
+        Args: {
+          target_opportunity_id: string
+          responsible_name: string
+          job_title: string
+          contact_phone: string
+        }
+        Returns: string
+      }
       move_opportunity: {
         Args: {
           opportunity_id: string

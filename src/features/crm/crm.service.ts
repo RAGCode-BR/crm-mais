@@ -231,6 +231,24 @@ export async function archiveRecord(
   if (error) throw error
 }
 
+export async function deleteRecord(entity: 'companies' | 'leads', id: string) {
+  const { data: files, error } =
+    entity === 'leads'
+      ? await client().rpc('delete_lead', { target_lead_id: id })
+      : await client().rpc('delete_company', { target_company_id: id })
+  if (error) throw error
+
+  const pathsByBucket = new Map<string, string[]>()
+  for (const { storage_bucket, storage_path } of files ?? []) {
+    pathsByBucket.set(storage_bucket, [...(pathsByBucket.get(storage_bucket) ?? []), storage_path])
+  }
+  // The record is already gone at this point; a failed file cleanup only leaves
+  // orphan objects behind, so it must not surface as a failed deletion.
+  await Promise.allSettled(
+    [...pathsByBucket].map(([bucket, paths]) => client().storage.from(bucket).remove(paths)),
+  )
+}
+
 export async function findCompanyDuplicates(
   organizationId: string,
   input: CompanyInput,

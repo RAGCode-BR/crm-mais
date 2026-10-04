@@ -8,10 +8,8 @@ import {
   LogOut,
   Menu,
   Settings2,
-  UserRoundSearch,
   Target,
   X,
-  Workflow,
   BrainCircuit,
   BellRing,
   ChartNoAxesCombined,
@@ -34,14 +32,12 @@ import { cn } from '@/lib/utils/cn'
 
 const navigation = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/empresas', label: 'Empresas', icon: Building2 },
-  { to: '/contatos', label: 'Contatos', icon: ContactRound },
-  { to: '/leads', label: 'Leads', icon: Target },
   { to: '/oportunidades', label: 'Oportunidades', icon: GitBranch },
+  { to: '/leads', label: 'Leads', icon: Target },
   { to: '/timeline', label: 'Timeline', icon: History },
   { to: '/tarefas', label: 'Tarefas', icon: ListTodo },
-  { to: '/prospeccao', label: 'Prospecção', icon: UserRoundSearch },
-  { to: '/cadencias', label: 'Cadências', icon: Workflow },
+  { to: '/empresas', label: 'Empresas', icon: Building2 },
+  { to: '/contatos', label: 'Contatos', icon: ContactRound },
   { to: '/inteligencia/scoring', label: 'Inteligência', icon: BrainCircuit },
   ...(featureFlags.commercialAi
     ? [{ to: '/inteligencia/assistente', label: 'Assistente IA', icon: Sparkles }]

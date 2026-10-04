@@ -30,7 +30,6 @@ src/
     pipeline/
     activities/
     tasks/
-    prospecting/
     reports/
     settings/
   hooks/               # apenas hooks verdadeiramente globais

@@ -1919,4 +1919,391 @@ describe('CRM database migrations', () => {
       await resetAuthentication(database)
     }
   })
+
+  it('deletes a lead with every dependent record, restricted to managers', async () => {
+    const companyId = '20000000-0000-4000-8000-000000000001'
+    const managerMemberId = '11000000-0000-4000-8000-000000000004'
+    const leadId = 'd1000000-0000-4000-8000-000000000001'
+    const opportunityId = 'd2000000-0000-4000-8000-000000000001'
+    const leadActivityId = 'd3000000-0000-4000-8000-000000000001'
+    const opportunityActivityId = 'd3000000-0000-4000-8000-000000000002'
+    const leadTaskId = 'd4000000-0000-4000-8000-000000000001'
+    const opportunityTaskId = 'd4000000-0000-4000-8000-000000000002'
+    const tagId = 'd5000000-0000-4000-8000-000000000001'
+    const filePath = `${organizationAId}/leads/${leadId}/contrato.pdf`
+
+    await database.exec(`
+      insert into public.leads (id, organization_id, company_id, name)
+      values ('${leadId}', '${organizationAId}', '${companyId}', 'Lead to delete');
+      insert into public.opportunities (
+        id, organization_id, title, company_id, lead_id, pipeline_id, stage_id
+      ) values (
+        '${opportunityId}', '${organizationAId}', 'Deal to delete', '${companyId}', '${leadId}',
+        '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001'
+      );
+      insert into public.activities (id, organization_id, lead_id, type, subject) values
+        ('${leadActivityId}', '${organizationAId}', '${leadId}', 'call', 'Lead call');
+      insert into public.activities (id, organization_id, opportunity_id, type, subject) values
+        ('${opportunityActivityId}', '${organizationAId}', '${opportunityId}', 'meeting', 'Deal meeting');
+      insert into public.tasks (id, organization_id, lead_id, title)
+      values ('${leadTaskId}', '${organizationAId}', '${leadId}', 'Lead task');
+      insert into public.tasks (id, organization_id, opportunity_id, title)
+      values ('${opportunityTaskId}', '${organizationAId}', '${opportunityId}', 'Deal task');
+      insert into public.notes (organization_id, lead_id, author_member_id, content)
+      values ('${organizationAId}', '${leadId}', '${managerMemberId}', 'Lead note');
+      insert into public.tags (id, organization_id, name)
+      values ('${tagId}', '${organizationAId}', 'Delete tag');
+      insert into public.entity_tags (organization_id, tag_id, lead_id)
+      values ('${organizationAId}', '${tagId}', '${leadId}');
+      insert into public.entity_tags (organization_id, tag_id, task_id)
+      values ('${organizationAId}', '${tagId}', '${opportunityTaskId}');
+      insert into public.notifications (
+        organization_id, recipient_member_id, type, title, related_entity_type, related_entity_id
+      ) values (
+        '${organizationAId}', '${managerMemberId}', 'lead_assigned', 'Lead assigned', 'lead', '${leadId}'
+      );
+    `)
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into storage.objects (bucket_id, name, owner_id)
+        values ('crm-private-attachments', '${filePath}', '${managerAId}');
+        insert into public.attachments (
+          organization_id, lead_id, uploaded_by_member_id,
+          storage_bucket, storage_path, file_name, size_bytes
+        ) values (
+          '${organizationAId}', '${leadId}', '${managerMemberId}',
+          'crm-private-attachments', '${filePath}', 'contrato.pdf', 64
+        );
+      `)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    for (const userId of [viewerAId, userBId]) {
+      await authenticateAs(database, userId)
+      try {
+        await expect(
+          database.query(`select * from public.delete_lead('${leadId}');`),
+        ).rejects.toThrow(/sem permissão/i)
+      } finally {
+        await resetAuthentication(database)
+      }
+    }
+
+    await authenticateAs(database, managerAId)
+    try {
+      const files = await database.query<{ storage_bucket: string; storage_path: string }>(`
+        select * from public.delete_lead('${leadId}');
+      `)
+      expect(files.rows).toEqual([
+        { storage_bucket: 'crm-private-attachments', storage_path: filePath },
+      ])
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const remaining = await database.query<{ total: number }>(`
+      select (
+        (select count(*) from public.leads where id = '${leadId}')
+        + (select count(*) from public.opportunities where id = '${opportunityId}')
+        + (select count(*) from public.activities
+            where id in ('${leadActivityId}', '${opportunityActivityId}') or lead_id = '${leadId}')
+        + (select count(*) from public.tasks
+            where id in ('${leadTaskId}', '${opportunityTaskId}'))
+        + (select count(*) from public.notes where lead_id = '${leadId}')
+        + (select count(*) from public.entity_tags where tag_id = '${tagId}')
+        + (select count(*) from public.attachments where storage_path = '${filePath}')
+        + (select count(*) from public.lead_score_results where lead_id = '${leadId}')
+        + (select count(*) from public.notifications where related_entity_id = '${leadId}')
+      )::int as total;
+    `)
+    expect(remaining.rows[0]?.total).toBe(0)
+
+    const preserved = await database.query<{ company: number; tag: number }>(`
+      select
+        (select count(*) from public.companies where id = '${companyId}')::int as company,
+        (select count(*) from public.tags where id = '${tagId}')::int as tag;
+    `)
+    expect(preserved.rows[0]).toEqual({ company: 1, tag: 1 })
+  })
+
+  it('deletes a company with its contacts, leads and dependents, restricted to managers', async () => {
+    const managerMemberId = '11000000-0000-4000-8000-000000000004'
+    const companyId = 'e0000000-0000-4000-8000-000000000001'
+    const otherCompanyId = '20000000-0000-4000-8000-000000000001'
+    const contactId = 'e1000000-0000-4000-8000-000000000001'
+    const companyLeadId = 'e2000000-0000-4000-8000-000000000001'
+    const contactLeadId = 'e2000000-0000-4000-8000-000000000002'
+    const opportunityId = 'e3000000-0000-4000-8000-000000000001'
+    const activityId = 'e4000000-0000-4000-8000-000000000001'
+    const taskId = 'e5000000-0000-4000-8000-000000000001'
+    const tagId = 'e6000000-0000-4000-8000-000000000001'
+    const filePath = `${organizationAId}/companies/${companyId}/proposta.pdf`
+
+    await database.exec(`
+      insert into public.companies (id, organization_id, trade_name)
+      values ('${companyId}', '${organizationAId}', 'Company to delete');
+      insert into public.contacts (id, organization_id, company_id, first_name)
+      values ('${contactId}', '${organizationAId}', '${companyId}', 'Contact to delete');
+      insert into public.leads (id, organization_id, company_id, name)
+      values ('${companyLeadId}', '${organizationAId}', '${companyId}', 'Company lead');
+      insert into public.leads (id, organization_id, contact_id, name)
+      values ('${contactLeadId}', '${organizationAId}', '${contactId}', 'Contact lead');
+      insert into public.opportunities (
+        id, organization_id, title, company_id, contact_id, pipeline_id, stage_id
+      ) values (
+        '${opportunityId}', '${organizationAId}', 'Company deal', '${companyId}', '${contactId}',
+        '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001'
+      );
+      insert into public.activities (id, organization_id, company_id, type, subject)
+      values ('${activityId}', '${organizationAId}', '${companyId}', 'call', 'Company call');
+      insert into public.tasks (id, organization_id, contact_id, title)
+      values ('${taskId}', '${organizationAId}', '${contactId}', 'Contact task');
+      insert into public.notes (organization_id, company_id, author_member_id, content)
+      values ('${organizationAId}', '${companyId}', '${managerMemberId}', 'Company note');
+      insert into public.tags (id, organization_id, name)
+      values ('${tagId}', '${organizationAId}', 'Company tag');
+      insert into public.entity_tags (organization_id, tag_id, company_id)
+      values ('${organizationAId}', '${tagId}', '${companyId}');
+    `)
+
+    await authenticateAs(database, managerAId)
+    try {
+      await database.exec(`
+        insert into storage.objects (bucket_id, name, owner_id)
+        values ('crm-private-attachments', '${filePath}', '${managerAId}');
+        insert into public.attachments (
+          organization_id, company_id, uploaded_by_member_id,
+          storage_bucket, storage_path, file_name, size_bytes
+        ) values (
+          '${organizationAId}', '${companyId}', '${managerMemberId}',
+          'crm-private-attachments', '${filePath}', 'proposta.pdf', 64
+        );
+      `)
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    for (const userId of [viewerAId, userBId]) {
+      await authenticateAs(database, userId)
+      try {
+        await expect(
+          database.query(`select * from public.delete_company('${companyId}');`),
+        ).rejects.toThrow(/sem permissão/i)
+      } finally {
+        await resetAuthentication(database)
+      }
+    }
+
+    await authenticateAs(database, managerAId)
+    try {
+      const files = await database.query<{ storage_bucket: string; storage_path: string }>(`
+        select * from public.delete_company('${companyId}');
+      `)
+      expect(files.rows).toEqual([
+        { storage_bucket: 'crm-private-attachments', storage_path: filePath },
+      ])
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const remaining = await database.query<{ total: number }>(`
+      select (
+        (select count(*) from public.companies where id = '${companyId}')
+        + (select count(*) from public.contacts where id = '${contactId}')
+        + (select count(*) from public.leads where id in ('${companyLeadId}', '${contactLeadId}'))
+        + (select count(*) from public.opportunities where id = '${opportunityId}')
+        + (select count(*) from public.activities where id = '${activityId}' or company_id = '${companyId}')
+        + (select count(*) from public.tasks where id = '${taskId}')
+        + (select count(*) from public.notes where company_id = '${companyId}')
+        + (select count(*) from public.entity_tags where tag_id = '${tagId}')
+        + (select count(*) from public.attachments where storage_path = '${filePath}')
+      )::int as total;
+    `)
+    expect(remaining.rows[0]?.total).toBe(0)
+
+    const preserved = await database.query<{ company: number; tag: number }>(`
+      select
+        (select count(*) from public.companies where id = '${otherCompanyId}')::int as company,
+        (select count(*) from public.tags where id = '${tagId}')::int as tag;
+    `)
+    expect(preserved.rows[0]).toEqual({ company: 1, tag: 1 })
+  })
+
+  it('creates quick opportunities reusing companies and responsible contacts', async () => {
+    const managerMemberId = '11000000-0000-4000-8000-000000000004'
+    const quickCall = (
+      company: string,
+      responsible: string,
+      phone: string,
+      product: string | null,
+    ) => `
+      select public.create_quick_opportunity(
+        '${organizationAId}', '${company}', '${responsible}', '${phone}',
+        1500.50, null, ${product === null ? 'null' : `'${product}'`}, '  Cliente pediu proposta  '
+      ) as id;
+    `
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await expect(database.query(quickCall('Viewer Co', '', '', null))).rejects.toThrow(
+        /row-level security/i,
+      )
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, managerAId)
+    let firstId: string
+    let secondId: string
+    let phoneOnlyId: string
+    try {
+      const first = await database.query<{ id: string }>(
+        quickCall('Quick Co', 'Maria da Silva', '(11) 98765-4321', 'Consultoria'),
+      )
+      const second = await database.query<{ id: string }>(
+        quickCall('  quick co ', 'MARIA DA SILVA', '', null),
+      )
+      const phoneOnly = await database.query<{ id: string }>(
+        quickCall('Phone Only Co', '', '11 3333-4444', null),
+      )
+      firstId = first.rows[0]!.id
+      secondId = second.rows[0]!.id
+      phoneOnlyId = phoneOnly.rows[0]!.id
+      await expect(database.query(quickCall('   ', '', '', null))).rejects.toThrow(
+        /nome da empresa/i,
+      )
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const created = await database.query<{
+      id: string
+      title: string
+      company_id: string
+      contact_id: string | null
+      owner_member_id: string
+      stage_id: string
+      status: string
+      estimated_value: string
+      probability: number
+      product_service: string | null
+      description: string
+    }>(`
+      select id, title, company_id, contact_id, owner_member_id, stage_id, status,
+        estimated_value::text, probability, product_service, description
+      from public.opportunities
+      where id in ('${firstId}', '${secondId}', '${phoneOnlyId}');
+    `)
+    const byId = new Map(created.rows.map((row) => [row.id, row]))
+    const first = byId.get(firstId)
+    const second = byId.get(secondId)
+    const phoneOnly = byId.get(phoneOnlyId)
+    expect(first).toMatchObject({
+      title: 'Quick Co - Consultoria',
+      owner_member_id: managerMemberId,
+      stage_id: '40000000-0000-4000-8000-000000000001',
+      status: 'open',
+      estimated_value: '1500.50',
+      probability: 0,
+      product_service: 'Consultoria',
+      description: 'Cliente pediu proposta',
+    })
+    expect(second?.title).toBe('Quick Co')
+    expect(second?.company_id).toBe(first?.company_id)
+    expect(second?.contact_id).toBe(first?.contact_id)
+    expect(phoneOnly?.contact_id).toBeNull()
+
+    const contact = await database.query<{ first_name: string; last_name: string; phone: string }>(
+      `select first_name, last_name, phone from public.contacts where id = '${first?.contact_id}';`,
+    )
+    expect(contact.rows[0]).toEqual({
+      first_name: 'Maria',
+      last_name: 'da Silva',
+      phone: '11987654321',
+    })
+
+    const companyPhones = await database.query<{ id: string; phone: string | null }>(`
+      select id, phone from public.companies
+      where id in ('${first?.company_id}', '${phoneOnly?.company_id}');
+    `)
+    expect(new Map(companyPhones.rows.map((row) => [row.id, row.phone]))).toEqual(
+      new Map([
+        [first?.company_id, null],
+        [phoneOnly?.company_id, '1133334444'],
+      ]),
+    )
+  })
+  it('registers the responsible person of a quick opportunity after the first contact', async () => {
+    const register = (opportunityId: string, name: string) => `
+      select public.register_opportunity_responsible(
+        '${opportunityId}', '${name}', ' Gerente de compras ', '(21) 4000-1234'
+      ) as id;
+    `
+
+    await authenticateAs(database, managerAId)
+    let opportunityId: string
+    try {
+      const created = await database.query<{ id: string }>(`
+        select public.create_quick_opportunity(
+          '${organizationAId}', 'Later Contact Co', '', '', 0, null, null, null
+        ) as id;
+      `)
+      opportunityId = created.rows[0]!.id
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, viewerAId)
+    try {
+      await expect(database.query(register(opportunityId, 'João Pereira'))).rejects.toThrow(
+        /sem permissão/i,
+      )
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    await authenticateAs(database, managerAId)
+    let contactId: string
+    try {
+      await expect(database.query(register(opportunityId, '  '))).rejects.toThrow(
+        /nome do responsável/i,
+      )
+      const registered = await database.query<{ id: string }>(
+        register(opportunityId, 'João Pereira'),
+      )
+      contactId = registered.rows[0]!.id
+      await expect(database.query(register(opportunityId, 'Outra Pessoa'))).rejects.toThrow(
+        /já possui um responsável/i,
+      )
+    } finally {
+      await resetAuthentication(database)
+    }
+
+    const linked = await database.query<{
+      contact_id: string
+      same_company: boolean
+      first_name: string
+      last_name: string
+      job_title: string
+      phone: string
+    }>(`
+      select opportunity.contact_id,
+        contact.company_id = opportunity.company_id as same_company,
+        contact.first_name, contact.last_name, contact.job_title, contact.phone
+      from public.opportunities as opportunity
+      join public.contacts as contact on contact.id = opportunity.contact_id
+      where opportunity.id = '${opportunityId}';
+    `)
+    expect(linked.rows[0]).toEqual({
+      contact_id: contactId,
+      same_company: true,
+      first_name: 'João',
+      last_name: 'Pereira',
+      job_title: 'Gerente de compras',
+      phone: '2140001234',
+    })
+  })
 })

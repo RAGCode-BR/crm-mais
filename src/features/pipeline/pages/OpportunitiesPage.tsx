@@ -1,4 +1,4 @@
-import { Plus, Settings2 } from 'lucide-react'
+import { Plus, Settings2, Zap } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -77,13 +77,22 @@ export function OpportunitiesPage() {
               </Link>
             ) : null}
             {canMove ? (
-              <Link
-                className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-                to="/oportunidades/nova"
-              >
-                <Plus className="size-4" />
-                Nova oportunidade
-              </Link>
+              <>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-card px-4 text-sm font-medium"
+                  to="/oportunidades/rapida"
+                >
+                  <Zap className="size-4" />
+                  Oportunidade rápida
+                </Link>
+                <Link
+                  className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+                  to="/oportunidades/nova"
+                >
+                  <Plus className="size-4" />
+                  Nova oportunidade
+                </Link>
+              </>
             ) : null}
           </>
         }
